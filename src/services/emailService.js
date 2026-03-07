@@ -1,5 +1,6 @@
 const templateService = require('./templateService');
 const queueService = require('./queueService');
+const webhookService = require('./webhookService');
 const EmailLog = require('../models/emailLog');
 const Bounce = require('../models/bounce');
 const config = require('../config');
@@ -58,6 +59,13 @@ class EmailService {
 
       await EmailLog.updateStatus(logId, 'queued');
 
+      webhookService.trigger('email.sent', {
+        logId,
+        recipient: Array.isArray(to) ? to : [to],
+        subject: emailContent.subject,
+        template: template || null
+      }).catch(err => logger.error('Webhook trigger error:', err));
+
       return {
         success: true,
         logId,
@@ -66,6 +74,13 @@ class EmailService {
       };
     } catch (error) {
       await EmailLog.updateStatus(logId, 'failed', { errorMessage: error.message });
+
+      webhookService.trigger('email.failed', {
+        logId,
+        recipient: Array.isArray(to) ? to : [to],
+        error: error.message
+      }).catch(err => logger.error('Webhook trigger error:', err));
+
       throw error;
     }
   }

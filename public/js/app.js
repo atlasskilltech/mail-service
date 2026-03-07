@@ -43,7 +43,9 @@ const pageTitles = {
   'email-logs': 'Email Logs',
   'templates': 'Templates',
   'bounces': 'Bounces',
-  'suppression': 'Suppression List'
+  'suppression': 'Suppression List',
+  'api-keys': 'API Keys',
+  'webhooks': 'Webhooks'
 };
 
 function showPage(page) {
@@ -64,6 +66,8 @@ function showPage(page) {
   if (page === 'dashboard') loadDashboard();
   if (page === 'templates') loadTemplates();
   if (page === 'suppression') loadSuppressionList();
+  if (page === 'api-keys') loadApiKeys();
+  if (page === 'webhooks') loadWebhooks();
 }
 
 // Status badge helper
@@ -500,6 +504,237 @@ document.getElementById('suppression-form').addEventListener('submit', async (e)
     showToast('Email added to suppression list', 'success');
     closeSuppressionModal();
     loadSuppressionList();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+});
+
+// =====================
+// API Keys Management
+// =====================
+async function loadApiKeys() {
+  if (!getApiKey()) {
+    document.getElementById('api-keys-table-body').innerHTML = '<tr><td colspan="7" class="px-6 py-12 text-center text-sm text-gray-500">Enter your API key to manage keys</td></tr>';
+    return;
+  }
+
+  try {
+    const keys = await api('GET', '/api-keys');
+    const tbody = document.getElementById('api-keys-table-body');
+
+    if (!keys.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-12 text-center text-sm text-gray-500">No API keys found</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = keys.map(k => `
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="px-6 py-3 text-sm font-medium text-gray-900">${escapeHtml(k.key_name)}</td>
+        <td class="px-6 py-3 text-sm text-gray-500 font-mono text-xs">${escapeHtml(k.api_key)}</td>
+        <td class="px-6 py-3">${k.is_active
+          ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Active</span>'
+          : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Revoked</span>'
+        }</td>
+        <td class="px-6 py-3 text-sm text-gray-600">${k.rate_limit}/min</td>
+        <td class="px-6 py-3 text-sm text-gray-500">${formatDate(k.last_used_at)}</td>
+        <td class="px-6 py-3 text-sm text-gray-500">${k.expires_at ? formatDate(k.expires_at) : 'Never'}</td>
+        <td class="px-6 py-3">
+          <div class="flex items-center gap-2">
+            ${k.is_active ? `<button onclick="revokeApiKeyById(${k.id})" class="text-xs text-yellow-600 hover:text-yellow-800 font-medium transition-colors">Revoke</button>` : ''}
+            <button onclick="deleteApiKeyById(${k.id}, '${escapeHtml(k.key_name)}')" class="text-xs text-red-600 hover:text-red-800 font-medium transition-colors">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function openApiKeyModal() {
+  document.getElementById('apikey-modal').classList.remove('hidden');
+}
+
+function closeApiKeyModal() {
+  document.getElementById('apikey-modal').classList.add('hidden');
+  document.getElementById('apikey-form').reset();
+}
+
+function copyApiKey() {
+  const input = document.getElementById('ak-result-key');
+  navigator.clipboard.writeText(input.value).then(() => showToast('API key copied to clipboard', 'success'));
+}
+
+document.getElementById('apikey-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!getApiKey()) return showToast('Please enter your API key', 'error');
+
+  const body = {
+    keyName: document.getElementById('ak-name').value,
+    rateLimit: parseInt(document.getElementById('ak-rate-limit').value) || 100
+  };
+
+  const expiresVal = document.getElementById('ak-expires').value;
+  if (expiresVal) body.expiresAt = new Date(expiresVal).toISOString();
+
+  try {
+    const result = await api('POST', '/api-keys', body);
+    closeApiKeyModal();
+    // Show the generated key
+    document.getElementById('ak-result-key').value = result.apiKey;
+    document.getElementById('apikey-result-modal').classList.remove('hidden');
+    loadApiKeys();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+});
+
+async function revokeApiKeyById(id) {
+  if (!confirm('Revoke this API key?')) return;
+  try {
+    await api('PATCH', `/api-keys/${id}/revoke`);
+    showToast('API key revoked', 'success');
+    loadApiKeys();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deleteApiKeyById(id, name) {
+  if (!confirm(`Delete API key "${name}"?`)) return;
+  try {
+    await api('DELETE', `/api-keys/${id}`);
+    showToast('API key deleted', 'success');
+    loadApiKeys();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// =====================
+// Webhooks Management
+// =====================
+async function loadWebhooks() {
+  if (!getApiKey()) {
+    document.getElementById('webhooks-grid').innerHTML = '<p class="text-sm text-gray-500 col-span-full text-center py-12">Enter your API key to manage webhooks</p>';
+    return;
+  }
+
+  try {
+    const webhooks = await api('GET', '/webhooks');
+
+    if (!webhooks.length) {
+      document.getElementById('webhooks-grid').innerHTML = '<p class="text-sm text-gray-500 col-span-full text-center py-12">No webhooks configured</p>';
+      return;
+    }
+
+    document.getElementById('webhooks-grid').innerHTML = webhooks.map(w => `
+      <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
+        <div class="flex items-start justify-between mb-3">
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900 truncate">${escapeHtml(w.url)}</p>
+            <p class="text-xs text-gray-500 mt-0.5">ID: ${w.id}</p>
+          </div>
+          <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${w.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">
+            ${w.is_active ? 'Active' : 'Inactive'}
+          </span>
+        </div>
+        <div class="flex flex-wrap gap-1 mb-3">
+          ${(w.events || []).map(ev =>
+            `<span class="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-mono">${escapeHtml(ev)}</span>`
+          ).join('')}
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-xs text-gray-500 mb-3">
+          <div>Failures: <span class="font-medium ${w.failure_count > 0 ? 'text-red-600' : 'text-gray-900'}">${w.failure_count}</span></div>
+          <div>Last triggered: <span class="font-medium text-gray-900">${w.last_triggered_at ? formatDate(w.last_triggered_at) : 'Never'}</span></div>
+        </div>
+        <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+          <button onclick="testWebhook(${w.id})" class="text-xs text-primary-600 hover:text-primary-800 font-medium transition-colors">Test</button>
+          <span class="text-gray-300">|</span>
+          <button onclick="editWebhook(${w.id})" class="text-xs text-primary-600 hover:text-primary-800 font-medium transition-colors">Edit</button>
+          <span class="text-gray-300">|</span>
+          <button onclick="deleteWebhook(${w.id})" class="text-xs text-red-600 hover:text-red-800 font-medium transition-colors">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function openWebhookModal(wh = null) {
+  document.getElementById('webhook-modal').classList.remove('hidden');
+  document.getElementById('webhook-modal-title').textContent = wh ? 'Edit Webhook' : 'Add Webhook';
+  document.getElementById('wh-id').value = wh ? wh.id : '';
+  document.getElementById('wh-url').value = wh ? wh.url : '';
+  document.getElementById('wh-secret').value = '';
+
+  // Set event checkboxes
+  document.querySelectorAll('input[name="wh-events"]').forEach(cb => {
+    cb.checked = wh ? (wh.events || []).includes(cb.value) : false;
+  });
+}
+
+function closeWebhookModal() {
+  document.getElementById('webhook-modal').classList.add('hidden');
+  document.getElementById('webhook-form').reset();
+}
+
+async function editWebhook(id) {
+  try {
+    const wh = await api('GET', `/webhooks/${id}`);
+    openWebhookModal(wh);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deleteWebhook(id) {
+  if (!confirm('Delete this webhook?')) return;
+  try {
+    await api('DELETE', `/webhooks/${id}`);
+    showToast('Webhook deleted', 'success');
+    loadWebhooks();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function testWebhook(id) {
+  try {
+    await api('POST', `/webhooks/${id}/test`);
+    showToast('Test webhook sent', 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+document.getElementById('webhook-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!getApiKey()) return showToast('Please enter your API key', 'error');
+
+  const events = Array.from(document.querySelectorAll('input[name="wh-events"]:checked')).map(cb => cb.value);
+  if (events.length === 0) return showToast('Select at least one event', 'error');
+
+  const id = document.getElementById('wh-id').value;
+  const body = {
+    url: document.getElementById('wh-url').value,
+    events
+  };
+
+  const secret = document.getElementById('wh-secret').value;
+  if (secret) body.secret = secret;
+
+  try {
+    if (id) {
+      await api('PUT', `/webhooks/${id}`, body);
+      showToast('Webhook updated', 'success');
+    } else {
+      const result = await api('POST', '/webhooks', body);
+      showToast('Webhook created', 'success');
+    }
+    closeWebhookModal();
+    loadWebhooks();
   } catch (err) {
     showToast(err.message, 'error');
   }

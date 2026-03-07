@@ -10,6 +10,8 @@ const emailRoutes = require('./routes/emailRoutes');
 const templateRoutes = require('./routes/templateRoutes');
 const bounceRoutes = require('./routes/bounceRoutes');
 const healthRoutes = require('./routes/healthRoutes');
+const apiKeyRoutes = require('./routes/apiKeyRoutes');
+const webhookRoutes = require('./routes/webhookRoutes');
 
 const app = express();
 
@@ -41,6 +43,8 @@ app.use('/', healthRoutes);
 app.use('/email', emailRoutes);
 app.use('/templates', templateRoutes);
 app.use('/bounces', bounceRoutes);
+app.use('/api-keys', apiKeyRoutes);
+app.use('/webhooks', webhookRoutes);
 
 // Dashboard (static files)
 app.use(express.static(path.join(__dirname, '..', 'public')));
