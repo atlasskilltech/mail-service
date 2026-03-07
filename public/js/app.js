@@ -287,14 +287,21 @@ async function loadTemplates() {
   }
 
   try {
-    const templates = await api('GET', '/templates');
+    const search = document.getElementById('tpl-search-input').value.trim();
+    const activeOnly = document.getElementById('tpl-filter-active').value;
+
+    let url = '/templates?';
+    if (search) url += `search=${encodeURIComponent(search)}&`;
+    if (activeOnly) url += `active=${activeOnly}&`;
+
+    const templates = await api('GET', url);
     window._templates = templates;
 
     // Update the send email template dropdown
     const select = document.getElementById('email-template');
     const currentVal = select.value;
     select.innerHTML = '<option value="">-- No template (custom content) --</option>';
-    templates.forEach(t => {
+    templates.filter(t => t.is_active).forEach(t => {
       select.innerHTML += `<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)} - ${escapeHtml(t.subject)}</option>`;
     });
     select.value = currentVal;
@@ -304,35 +311,48 @@ async function loadTemplates() {
       return;
     }
 
-    document.getElementById('templates-grid').innerHTML = templates.map(t => `
-      <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
+    document.getElementById('templates-grid').innerHTML = templates.map(t => {
+      const vars = t.variables ? (typeof t.variables === 'string' ? JSON.parse(t.variables) : t.variables) : [];
+      return `
+      <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow ${!t.is_active ? 'opacity-60' : ''}">
         <div class="flex items-start justify-between mb-3">
-          <div>
+          <div class="flex-1 min-w-0">
             <h4 class="font-semibold text-gray-900 text-sm">${escapeHtml(t.name)}</h4>
-            ${t.description ? `<p class="text-xs text-gray-500 mt-0.5">${escapeHtml(t.description)}</p>` : ''}
+            ${t.description ? `<p class="text-xs text-gray-500 mt-0.5 truncate">${escapeHtml(t.description)}</p>` : ''}
           </div>
-          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${t.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">
+          <button onclick="toggleTemplateActive(${t.id})" class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${t.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}" title="Click to toggle">
             ${t.is_active ? 'Active' : 'Inactive'}
-          </span>
+          </button>
         </div>
         <p class="text-sm text-gray-600 mb-3 truncate">${escapeHtml(t.subject)}</p>
         <div class="flex flex-wrap gap-1 mb-4">
-          ${(t.variables ? (typeof t.variables === 'string' ? JSON.parse(t.variables) : t.variables) : []).map(v =>
+          ${vars.map(v =>
             `<span class="text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded font-mono">{{${escapeHtml(v)}}}</span>`
           ).join('')}
+          ${vars.length === 0 ? '<span class="text-xs text-gray-400">No variables</span>' : ''}
         </div>
-        <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+        <div class="flex items-center gap-2 pt-3 border-t border-gray-100 flex-wrap">
+          <button onclick="previewTemplate('${escapeHtml(t.name)}')" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors">Preview</button>
+          <span class="text-gray-300">|</span>
           <button onclick="editTemplate(${t.id}, '${escapeHtml(t.name)}')" class="text-xs text-primary-600 hover:text-primary-800 font-medium transition-colors">Edit</button>
+          <span class="text-gray-300">|</span>
+          <button onclick="openCloneModal(${t.id}, '${escapeHtml(t.name)}')" class="text-xs text-teal-600 hover:text-teal-800 font-medium transition-colors">Clone</button>
+          <span class="text-gray-300">|</span>
+          <button onclick="viewTemplateStats('${escapeHtml(t.name)}')" class="text-xs text-amber-600 hover:text-amber-800 font-medium transition-colors">Stats</button>
           <span class="text-gray-300">|</span>
           <button onclick="deleteTemplate(${t.id}, '${escapeHtml(t.name)}')" class="text-xs text-red-600 hover:text-red-800 font-medium transition-colors">Delete</button>
           <span class="text-gray-300 ml-auto text-xs">${t.version ? `v${t.version}` : ''}</span>
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
   } catch (err) {
     showToast(err.message, 'error');
   }
 }
+
+// Search & filter listeners
+document.getElementById('tpl-search-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadTemplates(); });
+document.getElementById('tpl-filter-active').addEventListener('change', () => loadTemplates());
 
 function openTemplateModal(tpl = null) {
   document.getElementById('template-modal').classList.remove('hidden');
@@ -373,6 +393,169 @@ async function deleteTemplate(id, name) {
   }
 }
 
+// Toggle active/inactive
+async function toggleTemplateActive(id) {
+  try {
+    const result = await api('PATCH', `/templates/${id}/toggle`);
+    showToast(result.message, 'success');
+    loadTemplates();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// Preview
+let _previewName = '';
+function previewTemplate(name) {
+  _previewName = name;
+  const tpl = window._templates?.find(t => t.name === name);
+  const vars = tpl?.variables ? (typeof tpl.variables === 'string' ? JSON.parse(tpl.variables) : tpl.variables) : [];
+  // Pre-fill sample data
+  const sampleData = {};
+  vars.forEach(v => { sampleData[v] = `Sample ${v}`; });
+  document.getElementById('preview-data').value = JSON.stringify(sampleData, null, 2);
+  document.getElementById('preview-subject').classList.add('hidden');
+  document.getElementById('preview-html').classList.add('hidden');
+  document.getElementById('preview-modal').classList.remove('hidden');
+  renderPreview();
+}
+
+async function renderPreview() {
+  try {
+    let data = {};
+    const jsonStr = document.getElementById('preview-data').value.trim();
+    if (jsonStr) data = JSON.parse(jsonStr);
+
+    const result = await api('POST', `/templates/${_previewName}/preview`, { data });
+    document.getElementById('preview-subject').classList.remove('hidden');
+    document.getElementById('preview-subject-content').textContent = result.subject;
+    document.getElementById('preview-html').classList.remove('hidden');
+    const iframe = document.getElementById('preview-iframe');
+    iframe.srcdoc = result.html;
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function closePreviewModal() {
+  document.getElementById('preview-modal').classList.add('hidden');
+}
+
+// Clone
+function openCloneModal(id, name) {
+  document.getElementById('clone-source-id').value = id;
+  document.getElementById('clone-source-name').textContent = name;
+  document.getElementById('clone-new-name').value = name + '_copy';
+  document.getElementById('clone-modal').classList.remove('hidden');
+}
+
+function closeCloneModal() {
+  document.getElementById('clone-modal').classList.add('hidden');
+  document.getElementById('clone-form').reset();
+}
+
+document.getElementById('clone-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!getApiKey()) return showToast('Please enter your API key', 'error');
+  try {
+    const id = document.getElementById('clone-source-id').value;
+    const name = document.getElementById('clone-new-name').value;
+    await api('POST', `/templates/${id}/clone`, { name });
+    showToast('Template cloned', 'success');
+    closeCloneModal();
+    loadTemplates();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+});
+
+// Stats
+async function viewTemplateStats(name) {
+  document.getElementById('stats-modal').classList.remove('hidden');
+  document.getElementById('stats-content').innerHTML = '<p class="text-sm text-gray-500">Loading...</p>';
+  try {
+    const stats = await api('GET', `/templates/${name}/stats`);
+    document.getElementById('stats-content').innerHTML = `
+      <div class="space-y-4">
+        <div class="flex items-center justify-between py-2">
+          <span class="text-sm text-gray-600">Template</span>
+          <span class="text-sm font-medium text-gray-900 font-mono">${escapeHtml(stats.template)}</span>
+        </div>
+        <div class="flex items-center justify-between py-2 border-t border-gray-100">
+          <span class="text-sm text-gray-600">Total Emails Sent</span>
+          <span class="text-sm font-bold text-gray-900">${stats.totalSent}</span>
+        </div>
+        <div class="flex items-center justify-between py-2 border-t border-gray-100">
+          <span class="text-sm text-gray-600">Last Used</span>
+          <span class="text-sm font-medium text-gray-900">${stats.lastUsedAt ? formatDate(stats.lastUsedAt) : 'Never'}</span>
+        </div>
+        ${stats.byStatus.length > 0 ? `
+        <div class="pt-2 border-t border-gray-100">
+          <p class="text-sm font-medium text-gray-700 mb-2">Breakdown by Status</p>
+          <div class="grid grid-cols-2 gap-2">
+            ${stats.byStatus.map(s => `
+              <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                ${statusBadge(s.status)}
+                <span class="text-sm font-bold text-gray-900">${s.count}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>` : '<p class="text-sm text-gray-400 pt-2 border-t border-gray-100">No usage data yet</p>'}
+      </div>
+    `;
+  } catch (err) {
+    document.getElementById('stats-content').innerHTML = `<p class="text-sm text-red-500">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+// Export
+async function exportTemplates() {
+  if (!getApiKey()) return showToast('Please enter your API key', 'error');
+  try {
+    const result = await api('GET', '/templates/export');
+    const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `templates-export-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${result.count} templates`, 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// Import
+function openImportModal() {
+  document.getElementById('import-modal').classList.remove('hidden');
+}
+
+function closeImportModal() {
+  document.getElementById('import-modal').classList.add('hidden');
+  document.getElementById('import-form').reset();
+}
+
+document.getElementById('import-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!getApiKey()) return showToast('Please enter your API key', 'error');
+  try {
+    const jsonStr = document.getElementById('import-json').value.trim();
+    const parsed = JSON.parse(jsonStr);
+    const templates = parsed.templates || parsed;
+    const overwrite = document.getElementById('import-overwrite').checked;
+
+    const result = await api('POST', '/templates/import', { templates, overwrite });
+    showToast(`Import: ${result.created} created, ${result.updated} updated, ${result.skipped} skipped`, 'success');
+    closeImportModal();
+    loadTemplates();
+  } catch (err) {
+    showToast(err.message || 'Invalid JSON format', 'error');
+  }
+});
+
 document.getElementById('template-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!getApiKey()) return showToast('Please enter your API key', 'error');
@@ -403,6 +586,208 @@ document.getElementById('template-form').addEventListener('submit', async (e) =>
     showToast(err.message, 'error');
   }
 });
+
+// ========== Image Upload & Gallery ==========
+
+async function uploadImageFile(file) {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const response = await fetch('/images', {
+    method: 'POST',
+    headers: { 'x-api-key': getApiKey() },
+    body: formData
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || 'Upload failed');
+  }
+  return response.json();
+}
+
+async function uploadMultipleImages(files) {
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append('images', file);
+  }
+
+  const response = await fetch('/images/bulk', {
+    method: 'POST',
+    headers: { 'x-api-key': getApiKey() },
+    body: formData
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || 'Upload failed');
+  }
+  return response.json();
+}
+
+// Template modal image upload
+document.getElementById('tpl-image-upload').addEventListener('change', async (e) => {
+  const files = e.target.files;
+  if (!files.length) return;
+  if (!getApiKey()) return showToast('Please enter your API key', 'error');
+
+  const progress = document.getElementById('tpl-upload-progress');
+  const bar = document.getElementById('tpl-upload-bar');
+  const text = document.getElementById('tpl-upload-text');
+  progress.classList.remove('hidden');
+  bar.style.width = '30%';
+  text.textContent = `Uploading ${files.length} file(s)...`;
+
+  try {
+    let uploaded;
+    if (files.length === 1) {
+      const result = await uploadImageFile(files[0]);
+      uploaded = [result];
+    } else {
+      const result = await uploadMultipleImages(files);
+      uploaded = result.images;
+    }
+
+    bar.style.width = '100%';
+    text.textContent = 'Done!';
+
+    uploaded.forEach(img => addUploadedImageThumb(img.url || `/uploads/${img.filename}`, img.filename));
+
+    showToast(`${uploaded.length} image(s) uploaded`, 'success');
+    setTimeout(() => progress.classList.add('hidden'), 1500);
+  } catch (err) {
+    progress.classList.add('hidden');
+    showToast(err.message, 'error');
+  }
+
+  e.target.value = '';
+});
+
+function addUploadedImageThumb(url, filename) {
+  const container = document.getElementById('tpl-uploaded-images');
+  const div = document.createElement('div');
+  div.className = 'relative group';
+  div.innerHTML = `
+    <img src="${escapeHtml(url)}" alt="${escapeHtml(filename)}" class="w-16 h-16 object-cover rounded-lg border border-gray-200 cursor-pointer hover:ring-2 hover:ring-primary-500 transition-all" title="Click to insert into HTML" onclick="insertImageToHtml('${escapeHtml(url)}')">
+    <button type="button" onclick="this.parentElement.remove()" class="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+  `;
+  container.appendChild(div);
+}
+
+function insertImageToHtml(url) {
+  const textarea = document.getElementById('tpl-html');
+  const imgTag = `<img src="${url}" alt="" style="max-width:100%;height:auto;">`;
+  const pos = textarea.selectionStart || textarea.value.length;
+  textarea.value = textarea.value.slice(0, pos) + imgTag + textarea.value.slice(pos);
+  textarea.focus();
+  textarea.setSelectionRange(pos + imgTag.length, pos + imgTag.length);
+  showToast('Image tag inserted into HTML body', 'success');
+}
+
+// Image Gallery
+function openImageGallery() {
+  document.getElementById('gallery-modal').classList.remove('hidden');
+  loadGalleryImages();
+}
+
+function closeImageGallery() {
+  document.getElementById('gallery-modal').classList.add('hidden');
+}
+
+async function loadGalleryImages() {
+  if (!getApiKey()) return;
+  const container = document.getElementById('gallery-images');
+  container.innerHTML = '<p class="text-sm text-gray-500 col-span-full text-center py-8">Loading images...</p>';
+
+  try {
+    const result = await api('GET', '/images');
+
+    if (!result.images || result.images.length === 0) {
+      container.innerHTML = '<p class="text-sm text-gray-500 col-span-full text-center py-8">No images uploaded yet. Upload your first image above.</p>';
+      return;
+    }
+
+    container.innerHTML = result.images.map(img => `
+      <div class="relative group bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+        <img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.filename)}" class="w-full h-28 object-cover cursor-pointer hover:opacity-80 transition-opacity" onclick="selectGalleryImage('${escapeHtml(img.url)}')">
+        <div class="p-2">
+          <p class="text-xs text-gray-600 truncate" title="${escapeHtml(img.filename)}">${escapeHtml(img.filename)}</p>
+          <p class="text-xs text-gray-400">${formatFileSize(img.size)}</p>
+        </div>
+        <div class="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onclick="copyImageUrl('${escapeHtml(img.url)}')" class="bg-white/90 hover:bg-white text-gray-700 rounded p-1 shadow-sm" title="Copy URL">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+          </button>
+          <button onclick="deleteGalleryImage('${escapeHtml(img.filename)}')" class="bg-white/90 hover:bg-white text-red-600 rounded p-1 shadow-sm" title="Delete">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    container.innerHTML = `<p class="text-sm text-red-500 col-span-full text-center py-8">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function selectGalleryImage(url) {
+  insertImageToHtml(url);
+  addUploadedImageThumb(url, url.split('/').pop());
+  closeImageGallery();
+}
+
+function copyImageUrl(url) {
+  const fullUrl = window.location.origin + url;
+  navigator.clipboard.writeText(fullUrl).then(() => {
+    showToast('Image URL copied', 'success');
+  }).catch(() => {
+    showToast('Failed to copy URL', 'error');
+  });
+}
+
+async function deleteGalleryImage(filename) {
+  if (!confirm(`Delete image "${filename}"?`)) return;
+  try {
+    await api('DELETE', `/images/${filename}`);
+    showToast('Image deleted', 'success');
+    loadGalleryImages();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// Gallery upload
+document.getElementById('gallery-upload-input').addEventListener('change', async (e) => {
+  const files = e.target.files;
+  if (!files.length) return;
+  if (!getApiKey()) return showToast('Please enter your API key', 'error');
+
+  const status = document.getElementById('gallery-upload-status');
+  status.classList.remove('hidden');
+  status.textContent = `Uploading ${files.length} file(s)...`;
+
+  try {
+    if (files.length === 1) {
+      await uploadImageFile(files[0]);
+    } else {
+      await uploadMultipleImages(files);
+    }
+    status.textContent = `${files.length} file(s) uploaded successfully!`;
+    showToast(`${files.length} image(s) uploaded`, 'success');
+    loadGalleryImages();
+    setTimeout(() => status.classList.add('hidden'), 2000);
+  } catch (err) {
+    status.classList.add('hidden');
+    showToast(err.message, 'error');
+  }
+
+  e.target.value = '';
+});
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
 
 // Bounces
 async function loadBounces() {
