@@ -46,7 +46,8 @@ const pageTitles = {
   'suppression': 'Suppression List',
   'api-keys': 'API Keys',
   'webhooks': 'Webhooks',
-  'api-docs': 'API Documentation'
+  'api-docs': 'API Documentation',
+  'template-editor': 'Template Editor'
 };
 
 function showPage(page) {
@@ -70,6 +71,7 @@ function showPage(page) {
   if (page === 'api-keys') loadApiKeys();
   if (page === 'webhooks') loadWebhooks();
   if (page === 'api-docs') initApiDocs();
+  if (page === 'template-editor') initTemplateEditor();
 }
 
 // Status badge helper
