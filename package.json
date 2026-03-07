@@ -9,7 +9,9 @@
     "start:bounce-handler": "node src/workers/bounceHandler.js",
     "dev": "nodemon src/index.js",
     "dev:worker": "nodemon src/workers/emailWorker.js",
-    "migrate": "node src/database/migrate.js"
+    "migrate": "node src/database/migrate.js",
+    "seed:apikey": "node src/database/seed-api-key.js",
+    "setup": "node src/database/migrate.js && node src/database/seed-api-key.js"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.500.0",
