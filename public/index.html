@@ -273,12 +273,27 @@
 
         <!-- Templates Page -->
         <div id="page-templates" class="page hidden fade-in">
-          <div class="flex items-center justify-between mb-6">
+          <div class="flex items-center justify-between mb-6 flex-wrap gap-4">
             <h3 class="text-base font-semibold text-gray-900">Email Templates</h3>
-            <button onclick="openTemplateModal()" class="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors flex items-center gap-2">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-              New Template
-            </button>
+            <div class="flex items-center gap-3">
+              <input type="text" id="tpl-search-input" placeholder="Search templates..." class="text-sm border border-gray-300 rounded-lg px-4 py-2 w-48 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+              <select id="tpl-filter-active" class="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
+                <option value="">All</option>
+                <option value="true">Active Only</option>
+              </select>
+              <button onclick="exportTemplates()" class="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Export
+              </button>
+              <button onclick="openImportModal()" class="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                Import
+              </button>
+              <button onclick="openTemplateModal()" class="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                New Template
+              </button>
+            </div>
           </div>
           <div id="templates-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <p class="text-sm text-gray-500 col-span-full text-center py-12">Loading templates...</p>
@@ -549,6 +564,105 @@
         <div class="flex items-center gap-3 pt-2">
           <button type="submit" class="bg-primary-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">Save Webhook</button>
           <button type="button" onclick="closeWebhookModal()" class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Template Preview Modal -->
+  <div id="preview-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-900">Template Preview</h3>
+        <button onclick="closePreviewModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-6">
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Sample Data (JSON)</label>
+          <textarea id="preview-data" rows="3" placeholder='{"name": "John", "company": "Acme"}' class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none font-mono"></textarea>
+          <button onclick="renderPreview()" class="mt-2 bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">Render Preview</button>
+        </div>
+        <div id="preview-subject" class="mb-4 hidden">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Subject</label>
+          <div id="preview-subject-content" class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm"></div>
+        </div>
+        <div id="preview-html" class="hidden">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">HTML Preview</label>
+          <div class="border border-gray-200 rounded-lg overflow-hidden">
+            <iframe id="preview-iframe" class="w-full bg-white" style="min-height:400px;border:none;"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Template Clone Modal -->
+  <div id="clone-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md">
+      <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-900">Clone Template</h3>
+        <button onclick="closeCloneModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form id="clone-form" class="p-6 space-y-4">
+        <input type="hidden" id="clone-source-id">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Source</label>
+          <p id="clone-source-name" class="text-sm text-gray-500 font-mono bg-gray-50 px-3 py-2 rounded-lg"></p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">New Template Name <span class="text-red-500">*</span></label>
+          <input type="text" id="clone-new-name" required pattern="[a-zA-Z0-9_-]+" placeholder="new_template_name" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+        </div>
+        <div class="flex items-center gap-3 pt-2">
+          <button type="submit" class="bg-primary-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">Clone</button>
+          <button type="button" onclick="closeCloneModal()" class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Template Stats Modal -->
+  <div id="stats-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md">
+      <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-900">Template Usage Stats</h3>
+        <button onclick="document.getElementById('stats-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div id="stats-content" class="p-6">
+        <p class="text-sm text-gray-500">Loading...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Templates Modal -->
+  <div id="import-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl w-full max-w-lg">
+      <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-900">Import Templates</h3>
+        <button onclick="closeImportModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form id="import-form" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">JSON Data</label>
+          <textarea id="import-json" rows="8" required placeholder='{"templates":[{"name":"...","subject":"...","body_html":"..."}]}' class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none font-mono"></textarea>
+        </div>
+        <div>
+          <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" id="import-overwrite" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+            Overwrite existing templates with same name
+          </label>
+        </div>
+        <div class="flex items-center gap-3 pt-2">
+          <button type="submit" class="bg-primary-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">Import</button>
+          <button type="button" onclick="closeImportModal()" class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
         </div>
       </form>
     </div>

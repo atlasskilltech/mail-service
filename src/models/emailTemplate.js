@@ -14,11 +14,26 @@ class EmailTemplate {
     return rows[0] || null;
   }
 
-  static async findAll({ activeOnly = false } = {}) {
-    const query = activeOnly
-      ? 'SELECT id, name, subject, description, variables, is_active, version, created_at, updated_at FROM email_templates WHERE is_active = 1 ORDER BY name'
-      : 'SELECT id, name, subject, description, variables, is_active, version, created_at, updated_at FROM email_templates ORDER BY name';
-    const [rows] = await db.execute(query);
+  static async findAll({ activeOnly = false, search = null, sortBy = 'name', sortOrder = 'ASC' } = {}) {
+    const conditions = [];
+    const values = [];
+
+    if (activeOnly) {
+      conditions.push('is_active = 1');
+    }
+    if (search) {
+      conditions.push('(name LIKE ? OR subject LIKE ? OR description LIKE ?)');
+      const pattern = `%${search}%`;
+      values.push(pattern, pattern, pattern);
+    }
+
+    const allowedSort = ['name', 'subject', 'version', 'created_at', 'updated_at'];
+    const col = allowedSort.includes(sortBy) ? sortBy : 'name';
+    const order = sortOrder.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const query = `SELECT * FROM email_templates ${where} ORDER BY ${col} ${order}`;
+    const [rows] = await db.execute(query, values);
     return rows;
   }
 
@@ -54,6 +69,54 @@ class EmailTemplate {
 
   static async delete(id) {
     await db.execute('DELETE FROM email_templates WHERE id = ?', [id]);
+  }
+
+  static async clone(id, newName) {
+    const source = await this.findById(id);
+    if (!source) return null;
+
+    const [result] = await db.execute(
+      `INSERT INTO email_templates (name, subject, body_html, body_text, variables, description)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        newName,
+        source.subject,
+        source.body_html,
+        source.body_text,
+        source.variables,
+        source.description ? `Copy of: ${source.description}` : `Cloned from ${source.name}`
+      ]
+    );
+    return result.insertId;
+  }
+
+  static async toggleActive(id) {
+    const [result] = await db.execute(
+      'UPDATE email_templates SET is_active = NOT is_active WHERE id = ?',
+      [id]
+    );
+    if (result.affectedRows === 0) return null;
+    return this.findById(id);
+  }
+
+  static async getUsageStats(templateName) {
+    const [total] = await db.execute(
+      'SELECT COUNT(*) as total FROM email_logs WHERE template = ?',
+      [templateName]
+    );
+    const [byStatus] = await db.execute(
+      'SELECT status, COUNT(*) as count FROM email_logs WHERE template = ? GROUP BY status',
+      [templateName]
+    );
+    const [lastUsed] = await db.execute(
+      'SELECT created_at FROM email_logs WHERE template = ? ORDER BY created_at DESC LIMIT 1',
+      [templateName]
+    );
+    return {
+      totalSent: total[0].total,
+      byStatus,
+      lastUsedAt: lastUsed[0]?.created_at || null
+    };
   }
 }
 
