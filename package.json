@@ -1,0 +1,31 @@
+{
+  "name": "mail-service",
+  "version": "1.0.0",
+  "description": "AWS SES Email Microservice with Node.js and MySQL",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "start:worker": "node src/workers/emailWorker.js",
+    "start:bounce-handler": "node src/workers/bounceHandler.js",
+    "dev": "nodemon src/index.js",
+    "dev:worker": "nodemon src/workers/emailWorker.js",
+    "migrate": "node src/database/migrate.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ses": "^3.500.0",
+    "@aws-sdk/client-sqs": "^3.500.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "handlebars": "^4.7.8",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.7.1",
+    "uuid": "^9.0.0",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  }
+}
