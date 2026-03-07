@@ -45,7 +45,8 @@ const pageTitles = {
   'bounces': 'Bounces',
   'suppression': 'Suppression List',
   'api-keys': 'API Keys',
-  'webhooks': 'Webhooks'
+  'webhooks': 'Webhooks',
+  'api-docs': 'API Documentation'
 };
 
 function showPage(page) {
@@ -68,6 +69,7 @@ function showPage(page) {
   if (page === 'suppression') loadSuppressionList();
   if (page === 'api-keys') loadApiKeys();
   if (page === 'webhooks') loadWebhooks();
+  if (page === 'api-docs') initApiDocs();
 }
 
 // Status badge helper
@@ -787,6 +789,85 @@ function formatFileSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// ========== API Docs ==========
+
+function initApiDocs() {
+  // Set base URL
+  const baseUrl = window.location.origin;
+  const baseUrlEl = document.getElementById('api-base-url');
+  if (baseUrlEl) baseUrlEl.textContent = baseUrl;
+
+  // Replace {baseUrl} placeholders in code blocks
+  document.querySelectorAll('#page-api-docs pre code').forEach(el => {
+    el.innerHTML = el.innerHTML.replace(/\{baseUrl\}/g, baseUrl);
+  });
+
+  // Load template list for the docs
+  loadDocTemplateList();
+}
+
+async function loadDocTemplateList() {
+  const container = document.getElementById('doc-template-list');
+  if (!container) return;
+  if (!getApiKey()) {
+    container.innerHTML = '<span class="text-xs text-gray-400">Enter API key to see templates</span>';
+    return;
+  }
+  try {
+    const templates = await api('GET', '/templates?active=true');
+    if (templates.length === 0) {
+      container.innerHTML = '<span class="text-xs text-gray-400">No templates yet</span>';
+      return;
+    }
+    container.innerHTML = templates.map(t => {
+      const vars = t.variables ? (typeof t.variables === 'string' ? JSON.parse(t.variables) : t.variables) : [];
+      return `<div class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+        <code class="text-xs font-mono font-semibold text-primary-700">${escapeHtml(t.name)}</code>
+        <p class="text-xs text-gray-500 mt-0.5">${escapeHtml(t.subject)}</p>
+        ${vars.length > 0 ? `<p class="text-xs text-gray-400 mt-0.5">vars: ${vars.map(v => `{{${v}}}`).join(', ')}</p>` : ''}
+      </div>`;
+    }).join('');
+  } catch (err) {
+    container.innerHTML = `<span class="text-xs text-red-500">${escapeHtml(err.message)}</span>`;
+  }
+}
+
+function toggleDocSection(headerEl) {
+  const body = headerEl.nextElementSibling;
+  const chevron = headerEl.querySelector('.doc-chevron');
+  if (body.classList.contains('hidden')) {
+    body.classList.remove('hidden');
+    if (chevron) chevron.style.transform = 'rotate(180deg)';
+  } else {
+    body.classList.add('hidden');
+    if (chevron) chevron.style.transform = 'rotate(0deg)';
+  }
+}
+
+function scrollToDoc(id) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Auto-expand if collapsed
+    const body = el.querySelector('.doc-body');
+    const chevron = el.querySelector('.doc-chevron');
+    if (body && body.classList.contains('hidden')) {
+      body.classList.remove('hidden');
+      if (chevron) chevron.style.transform = 'rotate(180deg)';
+    }
+  }
+}
+
+function copyCodeBlock(btn) {
+  const pre = btn.closest('.relative').querySelector('pre');
+  const text = pre.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  }).catch(() => showToast('Failed to copy', 'error'));
 }
 
 // Bounces
