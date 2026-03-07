@@ -32,8 +32,9 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: Build & push
         run: |
-          docker build -t ${{ env.IMAGE }}:${{ github.sha }} .
+          docker build -t ${{ env.IMAGE }}:${{ github.sha }} -t ${{ env.IMAGE }}:latest .
           docker push ${{ env.IMAGE }}:${{ github.sha }}
+          docker push ${{ env.IMAGE }}:latest
 
   deploy:
     runs-on: ubuntu-latest
@@ -48,8 +49,8 @@ jobs:
           key:      ${{ secrets.SSH_KEY }}
           script: |
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            echo "${{ secrets.ENV_FILE }}" > /home/ubuntu/mail-service/.env
             cd /home/ubuntu/mail-service
-            export IMAGE=${{ env.IMAGE }}:${{ github.sha }}
+            sed -i '/^IMAGE=/d' .env
+            echo "IMAGE=${{ env.IMAGE }}:${{ github.sha }}" >> .env
             docker compose up -d --no-build
             docker image prune -f
