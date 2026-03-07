@@ -1,0 +1,518 @@
+// API helper
+function getApiKey() {
+  return document.getElementById('api-key-input').value.trim();
+}
+
+async function api(method, path, body = null) {
+  const headers = { 'Content-Type': 'application/json' };
+  const apiKey = getApiKey();
+  if (apiKey) headers['X-API-Key'] = apiKey;
+
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+
+  const res = await fetch(path, opts);
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || data.details || `Request failed (${res.status})`);
+  }
+  return data;
+}
+
+// Toast notifications
+function showToast(message, type = 'success') {
+  const container = document.getElementById('toast-container');
+  const colors = {
+    success: 'bg-green-600',
+    error: 'bg-red-600',
+    info: 'bg-blue-600',
+    warning: 'bg-yellow-600'
+  };
+  const toast = document.createElement('div');
+  toast.className = `toast ${colors[type]} text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium max-w-sm`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+// Page navigation
+const pageTitles = {
+  'dashboard': 'Dashboard',
+  'send-email': 'Send Email',
+  'email-logs': 'Email Logs',
+  'templates': 'Templates',
+  'bounces': 'Bounces',
+  'suppression': 'Suppression List'
+};
+
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+  document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+
+  const pageEl = document.getElementById(`page-${page}`);
+  const navEl = document.getElementById(`nav-${page}`);
+  if (pageEl) {
+    pageEl.classList.remove('hidden');
+    pageEl.classList.add('fade-in');
+  }
+  if (navEl) navEl.classList.add('active');
+
+  document.getElementById('page-title').textContent = pageTitles[page] || page;
+
+  // Load data for specific pages
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'templates') loadTemplates();
+  if (page === 'suppression') loadSuppressionList();
+}
+
+// Status badge helper
+function statusBadge(status) {
+  const colors = {
+    pending: 'bg-gray-100 text-gray-700',
+    queued: 'bg-blue-100 text-blue-700',
+    sent: 'bg-green-100 text-green-700',
+    delivered: 'bg-emerald-100 text-emerald-700',
+    failed: 'bg-red-100 text-red-700',
+    bounced: 'bg-yellow-100 text-yellow-700'
+  };
+  return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[status] || 'bg-gray-100 text-gray-700'}">${status}</span>`;
+}
+
+function bounceTypeBadge(type) {
+  const colors = {
+    hard: 'bg-red-100 text-red-700',
+    soft: 'bg-yellow-100 text-yellow-700',
+    complaint: 'bg-orange-100 text-orange-700'
+  };
+  return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[type] || 'bg-gray-100 text-gray-700'}">${type}</span>`;
+}
+
+function reasonBadge(reason) {
+  const colors = {
+    hard_bounce: 'bg-red-100 text-red-700',
+    complaint: 'bg-orange-100 text-orange-700',
+    manual: 'bg-blue-100 text-blue-700'
+  };
+  const label = reason.replace('_', ' ');
+  return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[reason] || 'bg-gray-100 text-gray-700'}">${label}</span>`;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// Dashboard
+async function loadDashboard() {
+  // Load health
+  try {
+    const health = await fetch('/health').then(r => r.json());
+    const dot = document.getElementById('health-dot');
+    const text = document.getElementById('health-text');
+    dot.className = `w-2 h-2 rounded-full ${health.status === 'ok' ? 'bg-green-500' : 'bg-red-500'}`;
+    text.textContent = health.status === 'ok' ? 'All systems operational' : 'Service degraded';
+
+    document.getElementById('health-details').innerHTML = `
+      <div class="flex items-center justify-between py-2">
+        <span class="text-sm text-gray-600">Status</span>
+        <span class="text-sm font-medium ${health.status === 'ok' ? 'text-green-600' : 'text-red-600'}">${health.status}</span>
+      </div>
+      <div class="flex items-center justify-between py-2 border-t border-gray-100">
+        <span class="text-sm text-gray-600">Database</span>
+        <span class="text-sm font-medium ${health.services?.database?.status === 'connected' ? 'text-green-600' : 'text-red-600'}">${health.services?.database?.status || 'unknown'}</span>
+      </div>
+      <div class="flex items-center justify-between py-2 border-t border-gray-100">
+        <span class="text-sm text-gray-600">Uptime</span>
+        <span class="text-sm font-medium text-gray-900">${formatUptime(health.uptime)}</span>
+      </div>
+      <div class="flex items-center justify-between py-2 border-t border-gray-100">
+        <span class="text-sm text-gray-600">Version</span>
+        <span class="text-sm font-medium text-gray-900">${health.version || '-'}</span>
+      </div>
+      <div class="flex items-center justify-between py-2 border-t border-gray-100">
+        <span class="text-sm text-gray-600">Environment</span>
+        <span class="text-sm font-medium text-gray-900">${health.environment || '-'}</span>
+      </div>
+    `;
+  } catch (e) {
+    document.getElementById('health-dot').className = 'w-2 h-2 rounded-full bg-red-500';
+    document.getElementById('health-text').textContent = 'Cannot reach service';
+  }
+
+  // Load stats
+  if (!getApiKey()) return;
+  try {
+    const stats = await api('GET', '/email/stats');
+    const breakdown = stats.breakdown || [];
+    const getCount = (s) => { const r = breakdown.find(b => b.status === s); return r ? r.count : 0; };
+    document.getElementById('stat-sent').textContent = getCount('sent');
+    document.getElementById('stat-queued').textContent = getCount('queued') + getCount('pending');
+    document.getElementById('stat-failed').textContent = getCount('failed');
+    document.getElementById('stat-bounced').textContent = getCount('bounced');
+  } catch (e) {
+    // Stats require auth
+  }
+}
+
+function formatUptime(seconds) {
+  if (!seconds) return '-';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+// Send Email
+document.getElementById('send-email-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!getApiKey()) return showToast('Please enter your API key', 'error');
+
+  const to = document.getElementById('email-to').value;
+  const template = document.getElementById('email-template').value;
+
+  const body = { to: to.includes(',') ? to.split(',').map(e => e.trim()) : to };
+
+  if (document.getElementById('email-from').value) body.from = document.getElementById('email-from').value;
+  if (document.getElementById('email-reply-to').value) body.replyTo = document.getElementById('email-reply-to').value;
+
+  if (template) {
+    body.template = template;
+    const data = {};
+    document.querySelectorAll('#template-vars input').forEach(input => {
+      if (input.value) data[input.name] = input.value;
+    });
+    if (Object.keys(data).length > 0) body.data = data;
+  } else {
+    body.subject = document.getElementById('email-subject').value;
+    body.html = document.getElementById('email-html').value;
+    body.text = document.getElementById('email-text').value;
+  }
+
+  try {
+    const result = await api('POST', template ? '/email/send-template' : '/email/send', body);
+    if (result.success) {
+      showToast(`Email queued successfully (ID: ${result.logId})`, 'success');
+      e.target.reset();
+    } else {
+      showToast(result.error || 'Failed to send email', 'error');
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+});
+
+// Template selector change
+document.getElementById('email-template').addEventListener('change', function() {
+  const customSection = document.getElementById('custom-content-section');
+  const varsSection = document.getElementById('template-vars-section');
+
+  if (this.value) {
+    customSection.classList.add('hidden');
+    const tpl = window._templates?.find(t => t.name === this.value);
+    if (tpl && tpl.variables) {
+      const vars = typeof tpl.variables === 'string' ? JSON.parse(tpl.variables) : tpl.variables;
+      varsSection.classList.remove('hidden');
+      document.getElementById('template-vars').innerHTML = vars.map(v =>
+        `<div><label class="block text-xs text-gray-500 mb-1">${escapeHtml(v)}</label><input name="${escapeHtml(v)}" placeholder="${escapeHtml(v)}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"></div>`
+      ).join('');
+    } else {
+      varsSection.classList.add('hidden');
+    }
+  } else {
+    customSection.classList.remove('hidden');
+    varsSection.classList.add('hidden');
+  }
+});
+
+// Email Logs
+async function loadEmailLogs() {
+  if (!getApiKey()) return showToast('Please enter your API key', 'error');
+
+  const recipient = document.getElementById('logs-search').value.trim();
+  const status = document.getElementById('logs-status-filter').value;
+
+  let url = '/email/logs?limit=50';
+  if (recipient) url += `&recipient=${encodeURIComponent(recipient)}`;
+  if (status) url += `&status=${encodeURIComponent(status)}`;
+
+  if (!recipient && !status) return showToast('Enter a recipient or select a status', 'warning');
+
+  try {
+    const data = await api('GET', url);
+    const logs = data.logs || data;
+    const tbody = document.getElementById('logs-table-body');
+
+    if (!logs.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-12 text-center text-sm text-gray-500">No logs found</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = logs.map(log => `
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="px-6 py-3 text-sm text-gray-900 font-mono">${log.id}</td>
+        <td class="px-6 py-3 text-sm text-gray-900">${escapeHtml(log.recipient)}</td>
+        <td class="px-6 py-3 text-sm text-gray-600 max-w-xs truncate">${escapeHtml(log.subject)}</td>
+        <td class="px-6 py-3 text-sm text-gray-600">${log.template ? `<span class="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded">${escapeHtml(log.template)}</span>` : '-'}</td>
+        <td class="px-6 py-3">${statusBadge(log.status)}</td>
+        <td class="px-6 py-3 text-sm text-gray-500">${formatDate(log.created_at)}</td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+document.getElementById('logs-search').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadEmailLogs(); });
+
+// Templates
+async function loadTemplates() {
+  if (!getApiKey()) {
+    document.getElementById('templates-grid').innerHTML = '<p class="text-sm text-gray-500 col-span-full text-center py-12">Enter your API key to view templates</p>';
+    return;
+  }
+
+  try {
+    const templates = await api('GET', '/templates');
+    window._templates = templates;
+
+    // Update the send email template dropdown
+    const select = document.getElementById('email-template');
+    const currentVal = select.value;
+    select.innerHTML = '<option value="">-- No template (custom content) --</option>';
+    templates.forEach(t => {
+      select.innerHTML += `<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)} - ${escapeHtml(t.subject)}</option>`;
+    });
+    select.value = currentVal;
+
+    if (!templates.length) {
+      document.getElementById('templates-grid').innerHTML = '<p class="text-sm text-gray-500 col-span-full text-center py-12">No templates found</p>';
+      return;
+    }
+
+    document.getElementById('templates-grid').innerHTML = templates.map(t => `
+      <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <h4 class="font-semibold text-gray-900 text-sm">${escapeHtml(t.name)}</h4>
+            ${t.description ? `<p class="text-xs text-gray-500 mt-0.5">${escapeHtml(t.description)}</p>` : ''}
+          </div>
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${t.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">
+            ${t.is_active ? 'Active' : 'Inactive'}
+          </span>
+        </div>
+        <p class="text-sm text-gray-600 mb-3 truncate">${escapeHtml(t.subject)}</p>
+        <div class="flex flex-wrap gap-1 mb-4">
+          ${(t.variables ? (typeof t.variables === 'string' ? JSON.parse(t.variables) : t.variables) : []).map(v =>
+            `<span class="text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded font-mono">{{${escapeHtml(v)}}}</span>`
+          ).join('')}
+        </div>
+        <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+          <button onclick="editTemplate(${t.id}, '${escapeHtml(t.name)}')" class="text-xs text-primary-600 hover:text-primary-800 font-medium transition-colors">Edit</button>
+          <span class="text-gray-300">|</span>
+          <button onclick="deleteTemplate(${t.id}, '${escapeHtml(t.name)}')" class="text-xs text-red-600 hover:text-red-800 font-medium transition-colors">Delete</button>
+          <span class="text-gray-300 ml-auto text-xs">${t.version ? `v${t.version}` : ''}</span>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function openTemplateModal(tpl = null) {
+  document.getElementById('template-modal').classList.remove('hidden');
+  document.getElementById('template-modal-title').textContent = tpl ? 'Edit Template' : 'New Template';
+  document.getElementById('template-id').value = tpl ? tpl.id : '';
+  document.getElementById('tpl-name').value = tpl ? tpl.name : '';
+  document.getElementById('tpl-name').disabled = !!tpl;
+  document.getElementById('tpl-description').value = tpl ? (tpl.description || '') : '';
+  document.getElementById('tpl-subject').value = tpl ? tpl.subject : '';
+  document.getElementById('tpl-html').value = tpl ? (tpl.body_html || '') : '';
+  document.getElementById('tpl-text').value = tpl ? (tpl.body_text || '') : '';
+  const vars = tpl?.variables ? (typeof tpl.variables === 'string' ? JSON.parse(tpl.variables) : tpl.variables) : [];
+  document.getElementById('tpl-variables').value = vars.join(', ');
+}
+
+function closeTemplateModal() {
+  document.getElementById('template-modal').classList.add('hidden');
+  document.getElementById('template-form').reset();
+}
+
+async function editTemplate(id, name) {
+  try {
+    const tpl = await api('GET', `/templates/${name}`);
+    openTemplateModal(tpl);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deleteTemplate(id, name) {
+  if (!confirm(`Delete template "${name}"?`)) return;
+  try {
+    await api('DELETE', `/templates/${id}`);
+    showToast('Template deleted', 'success');
+    loadTemplates();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+document.getElementById('template-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!getApiKey()) return showToast('Please enter your API key', 'error');
+
+  const id = document.getElementById('template-id').value;
+  const vars = document.getElementById('tpl-variables').value.split(',').map(v => v.trim()).filter(Boolean);
+
+  const body = {
+    name: document.getElementById('tpl-name').value,
+    subject: document.getElementById('tpl-subject').value,
+    bodyHtml: document.getElementById('tpl-html').value,
+    bodyText: document.getElementById('tpl-text').value || null,
+    description: document.getElementById('tpl-description').value || null,
+    variables: vars.length > 0 ? vars : null
+  };
+
+  try {
+    if (id) {
+      await api('PUT', `/templates/${id}`, body);
+      showToast('Template updated', 'success');
+    } else {
+      await api('POST', '/templates', body);
+      showToast('Template created', 'success');
+    }
+    closeTemplateModal();
+    loadTemplates();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+});
+
+// Bounces
+async function loadBounces() {
+  if (!getApiKey()) return showToast('Please enter your API key', 'error');
+
+  const email = document.getElementById('bounce-search').value.trim();
+  if (!email) return showToast('Enter an email to search', 'warning');
+
+  try {
+    const data = await api('GET', `/bounces/email/${encodeURIComponent(email)}`);
+    const bounces = data.bounces || data;
+    const tbody = document.getElementById('bounces-table-body');
+
+    if (!bounces.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500">No bounces found for this email</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = bounces.map(b => `
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="px-6 py-3 text-sm text-gray-900">${escapeHtml(b.email)}</td>
+        <td class="px-6 py-3">${bounceTypeBadge(b.bounce_type)}</td>
+        <td class="px-6 py-3 text-sm text-gray-600">${escapeHtml(b.bounce_subtype) || '-'}</td>
+        <td class="px-6 py-3 text-sm text-gray-500 font-mono text-xs max-w-xs truncate">${escapeHtml(b.original_message_id) || '-'}</td>
+        <td class="px-6 py-3 text-sm text-gray-500">${formatDate(b.created_at)}</td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+document.getElementById('bounce-search').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadBounces(); });
+
+// Suppression List
+async function loadSuppressionList() {
+  if (!getApiKey()) {
+    document.getElementById('suppression-table-body').innerHTML = '<tr><td colspan="4" class="px-6 py-12 text-center text-sm text-gray-500">Enter your API key to view suppression list</td></tr>';
+    return;
+  }
+
+  try {
+    const data = await api('GET', '/bounces/suppression');
+    const items = data.items || data;
+    const tbody = document.getElementById('suppression-table-body');
+
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-12 text-center text-sm text-gray-500">Suppression list is empty</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = items.map(s => `
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="px-6 py-3 text-sm text-gray-900">${escapeHtml(s.email)}</td>
+        <td class="px-6 py-3">${reasonBadge(s.reason)}</td>
+        <td class="px-6 py-3 text-sm text-gray-500">${formatDate(s.created_at)}</td>
+        <td class="px-6 py-3">
+          <button onclick="removeFromSuppression('${escapeHtml(s.email)}')" class="text-xs text-red-600 hover:text-red-800 font-medium transition-colors">Remove</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function removeFromSuppression(email) {
+  if (!confirm(`Remove ${email} from suppression list?`)) return;
+  try {
+    await api('DELETE', `/bounces/suppression/${encodeURIComponent(email)}`);
+    showToast(`${email} removed from suppression list`, 'success');
+    loadSuppressionList();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function openSuppressionModal() {
+  document.getElementById('suppression-modal').classList.remove('hidden');
+}
+
+function closeSuppressionModal() {
+  document.getElementById('suppression-modal').classList.add('hidden');
+  document.getElementById('suppression-form').reset();
+}
+
+document.getElementById('suppression-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!getApiKey()) return showToast('Please enter your API key', 'error');
+
+  const body = {
+    email: document.getElementById('suppress-email').value,
+    reason: document.getElementById('suppress-reason').value,
+    notes: document.getElementById('suppress-notes').value || undefined
+  };
+
+  try {
+    await api('POST', '/bounces/suppression', body);
+    showToast('Email added to suppression list', 'success');
+    closeSuppressionModal();
+    loadSuppressionList();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+});
+
+// API key persistence
+document.getElementById('api-key-input').addEventListener('change', function() {
+  localStorage.setItem('mail-service-api-key', this.value);
+});
+
+// Initialize
+window.addEventListener('DOMContentLoaded', () => {
+  const savedKey = localStorage.getItem('mail-service-api-key');
+  if (savedKey) document.getElementById('api-key-input').value = savedKey;
+  loadDashboard();
+});

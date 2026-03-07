@@ -13,21 +13,30 @@ const sqsClient = new SQSClient({
 class BounceHandler {
   constructor() {
     this.isRunning = false;
+    this.activeMessages = 0;
+    this.processedCount = 0;
   }
 
   async start() {
     this.isRunning = true;
-    logger.info('Bounce handler started');
+    logger.info('Bounce handler started', {
+      pollInterval: config.worker.pollInterval,
+      bounceQueueUrl: config.sqs.bounceQueueUrl
+    });
 
     while (this.isRunning) {
       try {
         await this.pollMessages();
       } catch (error) {
         logger.error('Bounce handler poll error:', error);
+        await this.sleep(config.worker.pollInterval * 2);
+        continue;
       }
 
       await this.sleep(config.worker.pollInterval);
     }
+
+    logger.info('Bounce handler stopped', { processed: this.processedCount });
   }
 
   async pollMessages() {
@@ -47,19 +56,23 @@ class BounceHandler {
   }
 
   async processMessage(message) {
+    this.activeMessages++;
     try {
       const snsMessage = JSON.parse(message.Body);
       const notification = JSON.parse(snsMessage.Message);
 
       await this.handleNotification(notification);
 
-      // Delete processed message
       await sqsClient.send(new DeleteMessageCommand({
         QueueUrl: config.sqs.bounceQueueUrl,
         ReceiptHandle: message.ReceiptHandle
       }));
+
+      this.processedCount++;
     } catch (error) {
       logger.error('Bounce message processing error:', error);
+    } finally {
+      this.activeMessages--;
     }
   }
 
@@ -70,6 +83,8 @@ class BounceHandler {
       await this.handleBounce(notification);
     } else if (type === 'Complaint') {
       await this.handleComplaint(notification);
+    } else {
+      logger.warn(`Unknown notification type: ${type}`);
     }
   }
 
@@ -82,6 +97,7 @@ class BounceHandler {
         bounceType: bounce.bounceType === 'Permanent' ? 'hard' : 'soft',
         bounceSubtype: bounce.bounceSubType,
         originalMessageId: notification.mail?.messageId,
+        diagnosticCode: recipient.diagnosticCode || null,
         feedback: JSON.stringify(recipient)
       });
 
@@ -89,14 +105,12 @@ class BounceHandler {
         await Bounce.addToSuppressionList(recipient.emailAddress, 'hard_bounce');
         logger.warn(`Hard bounce: ${recipient.emailAddress} suppressed`);
       }
+    }
 
-      // Update email log if we have the message ID
-      if (notification.mail?.messageId) {
-        const db = require('../config/database');
-        await db.execute(
-          'UPDATE email_logs SET status = ? WHERE message_id = ?',
-          ['bounced', notification.mail.messageId]
-        );
+    if (notification.mail?.messageId) {
+      const log = await EmailLog.findByMessageId(notification.mail.messageId);
+      if (log) {
+        await EmailLog.updateStatus(log.id, 'bounced');
       }
     }
   }
@@ -117,9 +131,15 @@ class BounceHandler {
     }
   }
 
-  stop() {
+  async stop() {
     this.isRunning = false;
-    logger.info('Bounce handler stopping...');
+    logger.info('Bounce handler shutting down, waiting for active messages...');
+
+    const maxWait = 30000;
+    const start = Date.now();
+    while (this.activeMessages > 0 && Date.now() - start < maxWait) {
+      await this.sleep(500);
+    }
   }
 
   sleep(ms) {
@@ -129,8 +149,13 @@ class BounceHandler {
 
 const handler = new BounceHandler();
 
-process.on('SIGINT', () => { handler.stop(); process.exit(0); });
-process.on('SIGTERM', () => { handler.stop(); process.exit(0); });
+async function shutdown() {
+  await handler.stop();
+  process.exit(0);
+}
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
 handler.start();
 

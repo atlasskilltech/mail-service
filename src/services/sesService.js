@@ -8,7 +8,7 @@ const sesClient = new SESClient({
 });
 
 class SESService {
-  async sendEmail({ to, subject, html, text, from = config.ses.fromEmail, replyTo }) {
+  async sendEmail({ to, subject, html, text, from = config.ses.fromEmail, replyTo, cc, bcc }) {
     const toAddresses = Array.isArray(to) ? to : [to];
 
     const params = {
@@ -22,6 +22,12 @@ class SESService {
       }
     };
 
+    if (cc) {
+      params.Destination.CcAddresses = Array.isArray(cc) ? cc : [cc];
+    }
+    if (bcc) {
+      params.Destination.BccAddresses = Array.isArray(bcc) ? bcc : [bcc];
+    }
     if (html) {
       params.Message.Body.Html = { Data: html, Charset: 'UTF-8' };
     }
@@ -30,6 +36,9 @@ class SESService {
     }
     if (replyTo) {
       params.ReplyToAddresses = Array.isArray(replyTo) ? replyTo : [replyTo];
+    }
+    if (config.ses.configurationSet) {
+      params.ConfigurationSetName = config.ses.configurationSet;
     }
 
     try {

@@ -2,12 +2,11 @@ const templateService = require('./templateService');
 const queueService = require('./queueService');
 const EmailLog = require('../models/emailLog');
 const Bounce = require('../models/bounce');
+const config = require('../config');
 const logger = require('../utils/logger');
 
 class EmailService {
-  // Send a single email (queued)
-  async sendEmail({ to, subject, template, data, html, text }) {
-    // Check suppression list
+  async sendEmail({ to, subject, template, data, html, text, from, replyTo }) {
     const recipients = Array.isArray(to) ? to : [to];
     const suppressedEmails = [];
 
@@ -31,22 +30,20 @@ class EmailService {
       to = activeRecipients.length === 1 ? activeRecipients[0] : activeRecipients;
     }
 
-    // Resolve template if specified
     let emailContent = { subject, html, text };
     if (template) {
       emailContent = await templateService.renderTemplate(template, data || {});
     }
 
-    // Create log entry
     const logId = await EmailLog.create({
+      sender: from || config.ses.fromEmail,
       recipient: Array.isArray(to) ? to.join(', ') : to,
       subject: emailContent.subject,
       template,
       status: 'pending',
-      metadata: { data }
+      metadata: { data, from, replyTo }
     });
 
-    // Enqueue for worker processing
     try {
       const sqsMessageId = await queueService.enqueueEmail({
         logId,
@@ -54,7 +51,9 @@ class EmailService {
         subject: emailContent.subject,
         html: emailContent.html,
         text: emailContent.text,
-        template
+        template,
+        from,
+        replyTo
       });
 
       await EmailLog.updateStatus(logId, 'queued');
@@ -71,8 +70,7 @@ class EmailService {
     }
   }
 
-  // Send bulk emails
-  async sendBulkEmail({ recipients, template, defaultData = {} }) {
+  async sendBulkEmail({ recipients, template, defaultData = {}, from, replyTo }) {
     const results = [];
 
     for (const recipient of recipients) {
@@ -81,7 +79,9 @@ class EmailService {
           to: recipient.to,
           template,
           data: { ...defaultData, ...recipient.data },
-          subject: recipient.subject
+          subject: recipient.subject,
+          from,
+          replyTo
         });
         results.push({ to: recipient.to, ...result });
       } catch (error) {
@@ -97,9 +97,8 @@ class EmailService {
     };
   }
 
-  // Send template email
-  async sendTemplateEmail({ to, template, data }) {
-    return this.sendEmail({ to, template, data });
+  async sendTemplateEmail({ to, template, data, from, replyTo }) {
+    return this.sendEmail({ to, template, data, from, replyTo });
   }
 }
 

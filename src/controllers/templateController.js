@@ -5,7 +5,8 @@ const logger = require('../utils/logger');
 class TemplateController {
   async listTemplates(req, res) {
     try {
-      const templates = await EmailTemplate.findAll();
+      const activeOnly = req.query.active === 'true';
+      const templates = await EmailTemplate.findAll({ activeOnly });
       res.json(templates);
     } catch (error) {
       logger.error('List templates error:', error);
@@ -28,8 +29,8 @@ class TemplateController {
 
   async createTemplate(req, res) {
     try {
-      const { name, subject, bodyHtml, bodyText, variables } = req.body;
-      const id = await EmailTemplate.create({ name, subject, bodyHtml, bodyText, variables });
+      const { name, subject, bodyHtml, bodyText, variables, description } = req.body;
+      const id = await EmailTemplate.create({ name, subject, bodyHtml, bodyText, variables, description });
       templateService.clearCache();
       res.status(201).json({ id, name, message: 'Template created' });
     } catch (error) {
@@ -44,6 +45,10 @@ class TemplateController {
   async updateTemplate(req, res) {
     try {
       const { id } = req.params;
+      const existing = await EmailTemplate.findById(id);
+      if (!existing) {
+        return res.status(404).json({ error: 'Template not found' });
+      }
       await EmailTemplate.update(id, req.body);
       templateService.clearCache();
       res.json({ message: 'Template updated' });
@@ -56,6 +61,10 @@ class TemplateController {
   async deleteTemplate(req, res) {
     try {
       const { id } = req.params;
+      const existing = await EmailTemplate.findById(id);
+      if (!existing) {
+        return res.status(404).json({ error: 'Template not found' });
+      }
       await EmailTemplate.delete(id);
       templateService.clearCache();
       res.json({ message: 'Template deleted' });

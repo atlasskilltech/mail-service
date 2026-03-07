@@ -5,8 +5,8 @@ const logger = require('../utils/logger');
 class EmailController {
   async sendEmail(req, res) {
     try {
-      const { to, subject, template, data, html, text } = req.body;
-      const result = await emailService.sendEmail({ to, subject, template, data, html, text });
+      const { to, subject, template, data, html, text, from, replyTo } = req.body;
+      const result = await emailService.sendEmail({ to, subject, template, data, html, text, from, replyTo });
       res.status(202).json(result);
     } catch (error) {
       logger.error('Send email error:', error);
@@ -16,8 +16,8 @@ class EmailController {
 
   async sendBulkEmail(req, res) {
     try {
-      const { recipients, template, defaultData } = req.body;
-      const result = await emailService.sendBulkEmail({ recipients, template, defaultData });
+      const { recipients, template, defaultData, from, replyTo } = req.body;
+      const result = await emailService.sendBulkEmail({ recipients, template, defaultData, from, replyTo });
       res.status(202).json(result);
     } catch (error) {
       logger.error('Bulk email error:', error);
@@ -27,8 +27,8 @@ class EmailController {
 
   async sendTemplateEmail(req, res) {
     try {
-      const { to, template, data } = req.body;
-      const result = await emailService.sendTemplateEmail({ to, template, data });
+      const { to, template, data, from, replyTo } = req.body;
+      const result = await emailService.sendTemplateEmail({ to, template, data, from, replyTo });
       res.status(202).json(result);
     } catch (error) {
       logger.error('Template email error:', error);
@@ -52,12 +52,20 @@ class EmailController {
 
   async getEmailLogs(req, res) {
     try {
-      const { recipient } = req.query;
-      if (!recipient) {
-        return res.status(400).json({ error: 'Recipient query parameter is required' });
+      const { recipient, status } = req.query;
+      const limit = parseInt(req.query.limit || '50', 10);
+      const offset = parseInt(req.query.offset || '0', 10);
+
+      if (status) {
+        const logs = await EmailLog.findByStatus(status, limit);
+        return res.json({ logs, limit });
       }
-      const logs = await EmailLog.findByRecipient(recipient);
-      res.json(logs);
+
+      if (!recipient) {
+        return res.status(400).json({ error: 'Recipient or status query parameter is required' });
+      }
+      const logs = await EmailLog.findByRecipient(recipient, { limit, offset });
+      res.json({ logs, limit, offset });
     } catch (error) {
       logger.error('Get email logs error:', error);
       res.status(500).json({ error: 'Failed to get email logs' });
@@ -70,7 +78,7 @@ class EmailController {
       const start = startDate || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const end = endDate || new Date().toISOString();
       const stats = await EmailLog.getStats(start, end);
-      res.json({ startDate: start, endDate: end, stats });
+      res.json({ startDate: start, endDate: end, ...stats });
     } catch (error) {
       logger.error('Get stats error:', error);
       res.status(500).json({ error: 'Failed to get email stats' });
