@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-module.exports = {
+const config = {
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
 
@@ -11,8 +11,9 @@ module.exports = {
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'mail_service',
     waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
+    connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT || '10', 10),
+    queueLimit: 0,
+    connectTimeout: 10000
   },
 
   aws: {
@@ -26,7 +27,9 @@ module.exports = {
   },
 
   ses: {
-    fromEmail: process.env.SES_FROM_EMAIL || 'noreply@example.com'
+    fromEmail: process.env.SES_FROM_EMAIL || 'noreply@example.com',
+    replyToEmail: process.env.SES_REPLY_TO_EMAIL || null,
+    configurationSet: process.env.SES_CONFIGURATION_SET || null
   },
 
   sqs: {
@@ -43,6 +46,14 @@ module.exports = {
     pollInterval: parseInt(process.env.WORKER_POLL_INTERVAL || '5000', 10),
     maxMessages: parseInt(process.env.WORKER_MAX_MESSAGES || '10', 10),
     retryAttempts: parseInt(process.env.WORKER_RETRY_ATTEMPTS || '3', 10),
-    retryDelay: parseInt(process.env.WORKER_RETRY_DELAY || '30000', 10)
+    retryDelay: parseInt(process.env.WORKER_RETRY_DELAY || '30000', 10),
+    concurrency: parseInt(process.env.WORKER_CONCURRENCY || '5', 10)
+  },
+
+  cors: {
+    origin: process.env.CORS_ORIGIN || '*',
+    methods: process.env.CORS_METHODS || 'GET,POST,PUT,DELETE,OPTIONS'
   }
 };
+
+module.exports = config;

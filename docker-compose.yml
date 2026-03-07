@@ -16,6 +16,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - mail-network
 
   api:
     build: .
@@ -26,11 +28,18 @@ services:
       - .env
     environment:
       DB_HOST: db
+      NODE_ENV: ${NODE_ENV:-production}
     depends_on:
       db:
         condition: service_healthy
     command: >
       sh -c "node src/database/migrate.js && node src/index.js"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    networks:
+      - mail-network
 
   worker:
     build: .
@@ -39,10 +48,17 @@ services:
       - .env
     environment:
       DB_HOST: db
+      NODE_ENV: ${NODE_ENV:-production}
     depends_on:
       db:
         condition: service_healthy
     command: ["node", "src/workers/emailWorker.js"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    networks:
+      - mail-network
 
   bounce-handler:
     build: .
@@ -51,10 +67,21 @@ services:
       - .env
     environment:
       DB_HOST: db
+      NODE_ENV: ${NODE_ENV:-production}
     depends_on:
       db:
         condition: service_healthy
     command: ["node", "src/workers/bounceHandler.js"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    networks:
+      - mail-network
 
 volumes:
   db_data:
+
+networks:
+  mail-network:
+    driver: bridge

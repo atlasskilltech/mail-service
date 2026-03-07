@@ -33,13 +33,15 @@ async function authenticateApiKey(req, res, next) {
 
   try {
     const [rows] = await db.execute(
-      'SELECT * FROM api_keys WHERE api_key = ? AND is_active = 1',
+      'SELECT * FROM api_keys WHERE api_key = ? AND is_active = 1 AND (expires_at IS NULL OR expires_at > NOW())',
       [apiKey]
     );
 
     if (rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid API key' });
+      return res.status(401).json({ error: 'Invalid or expired API key' });
     }
+
+    db.execute('UPDATE api_keys SET last_used_at = NOW() WHERE id = ?', [rows[0].id]).catch(() => {});
 
     req.apiKeyInfo = rows[0];
     next();
@@ -63,17 +65,29 @@ function generateToken(payload) {
 }
 
 // Generate API key (utility)
-async function createApiKey(keyName, rateLimit = 100) {
+async function createApiKey(keyName, rateLimit = 100, expiresAt = null) {
   const { v4: uuidv4 } = require('uuid');
   const apiKey = `ms_${uuidv4().replace(/-/g, '')}`;
   const hashedKey = await bcrypt.hash(apiKey, 10);
 
   await db.execute(
-    'INSERT INTO api_keys (key_name, api_key, hashed_key, rate_limit) VALUES (?, ?, ?, ?)',
-    [keyName, apiKey, hashedKey, rateLimit]
+    'INSERT INTO api_keys (key_name, api_key, hashed_key, rate_limit, expires_at) VALUES (?, ?, ?, ?, ?)',
+    [keyName, apiKey, hashedKey, rateLimit, expiresAt]
   );
 
   return apiKey;
 }
 
-module.exports = { authenticateJWT, authenticateApiKey, authenticate, generateToken, createApiKey };
+async function listApiKeys() {
+  const [rows] = await db.execute(
+    'SELECT id, key_name, is_active, rate_limit, last_used_at, expires_at, created_at FROM api_keys ORDER BY created_at DESC'
+  );
+  return rows;
+}
+
+async function revokeApiKey(id) {
+  const [result] = await db.execute('UPDATE api_keys SET is_active = 0 WHERE id = ?', [id]);
+  return result.affectedRows > 0;
+}
+
+module.exports = { authenticateJWT, authenticateApiKey, authenticate, generateToken, createApiKey, listApiKeys, revokeApiKey };

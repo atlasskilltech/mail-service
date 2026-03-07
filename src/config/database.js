@@ -11,6 +11,20 @@ pool.getConnection()
   })
   .catch((err) => {
     logger.error('MySQL connection failed:', err.message);
+    if (config.nodeEnv === 'production') {
+      process.exit(1);
+    }
   });
 
+async function checkConnection() {
+  try {
+    const conn = await pool.getConnection();
+    conn.release();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 module.exports = pool;
+module.exports.checkConnection = checkConnection;

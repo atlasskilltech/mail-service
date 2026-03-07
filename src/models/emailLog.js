@@ -1,11 +1,11 @@
 const db = require('../config/database');
 
 class EmailLog {
-  static async create({ recipient, subject, template, status = 'pending', metadata = null }) {
+  static async create({ sender, recipient, subject, template, status = 'pending', metadata = null }) {
     const [result] = await db.execute(
-      `INSERT INTO email_logs (recipient, subject, template, status, metadata)
-       VALUES (?, ?, ?, ?, ?)`,
-      [recipient, subject, template || null, status, metadata ? JSON.stringify(metadata) : null]
+      `INSERT INTO email_logs (sender, recipient, subject, template, status, metadata)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [sender || null, recipient, subject, template || null, status, metadata ? JSON.stringify(metadata) : null]
     );
     return result.insertId;
   }
@@ -21,6 +21,9 @@ class EmailLog {
     if (errorMessage) {
       fields.push('error_message = ?');
       values.push(errorMessage);
+    }
+    if (status === 'sent') {
+      fields.push('sent_at = NOW()');
     }
 
     values.push(id);
@@ -42,10 +45,23 @@ class EmailLog {
     return rows[0] || null;
   }
 
-  static async findByRecipient(recipient, limit = 50) {
+  static async findByMessageId(messageId) {
+    const [rows] = await db.execute('SELECT * FROM email_logs WHERE message_id = ?', [messageId]);
+    return rows[0] || null;
+  }
+
+  static async findByRecipient(recipient, { limit = 50, offset = 0 } = {}) {
     const [rows] = await db.execute(
-      'SELECT * FROM email_logs WHERE recipient = ? ORDER BY created_at DESC LIMIT ?',
-      [recipient, limit]
+      'SELECT * FROM email_logs WHERE recipient = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+      [recipient, limit, offset]
+    );
+    return rows;
+  }
+
+  static async findByStatus(status, limit = 100) {
+    const [rows] = await db.execute(
+      'SELECT * FROM email_logs WHERE status = ? ORDER BY created_at DESC LIMIT ?',
+      [status, limit]
     );
     return rows;
   }
@@ -58,7 +74,24 @@ class EmailLog {
        GROUP BY status`,
       [startDate, endDate]
     );
-    return rows;
+
+    const [totalRow] = await db.execute(
+      `SELECT COUNT(*) as total FROM email_logs WHERE created_at BETWEEN ? AND ?`,
+      [startDate, endDate]
+    );
+
+    return {
+      breakdown: rows,
+      total: totalRow[0].total
+    };
+  }
+
+  static async deleteOlderThan(days) {
+    const [result] = await db.execute(
+      'DELETE FROM email_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)',
+      [days]
+    );
+    return result.affectedRows;
   }
 }
 
