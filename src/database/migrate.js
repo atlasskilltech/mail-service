@@ -1,4 +1,6 @@
 const mysql = require('mysql2/promise');
+const { v4: uuidv4 } = require('uuid');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 const migrations = [
@@ -105,6 +107,31 @@ const migrations = [
   ('otp_verification', 'Your OTP Code - {{otp}}', '<h1>Verification Code</h1><p>Hi {{name}},</p><p>Your OTP code is: <strong>{{otp}}</strong></p><p>This code expires in {{expiry_time}}.</p>', 'Hi {{name}},\\nYour OTP code is: {{otp}}\\nThis code expires in {{expiry_time}}.', '["name", "otp", "expiry_time"]', 'OTP verification email')`
 ];
 
+async function seedDefaultApiKey(connection) {
+  const [existing] = await connection.execute('SELECT COUNT(*) as count FROM api_keys');
+  if (existing[0].count > 0) {
+    console.log('API key(s) already exist, skipping seed');
+    return;
+  }
+
+  const apiKey = `ms_${uuidv4().replace(/-/g, '')}`;
+  const hashedKey = await bcrypt.hash(apiKey, 10);
+
+  await connection.execute(
+    'INSERT INTO api_keys (key_name, api_key, hashed_key, rate_limit) VALUES (?, ?, ?, ?)',
+    ['Default Admin Key', apiKey, hashedKey, 1000]
+  );
+
+  console.log('\n  ╔══════════════════════════════════════════════════════════╗');
+  console.log('  ║           Default API Key Created!                       ║');
+  console.log('  ╠══════════════════════════════════════════════════════════╣');
+  console.log(`  ║  API Key: ${apiKey.padEnd(46)}║`);
+  console.log('  ╠══════════════════════════════════════════════════════════╣');
+  console.log('  ║  Paste this in the "API Key" field on the dashboard.    ║');
+  console.log('  ║  Save it now — it won\'t be shown again!                 ║');
+  console.log('  ╚══════════════════════════════════════════════════════════╝\n');
+}
+
 async function runMigrations() {
   const connection = await mysql.createConnection({
     host: process.env.DB_HOST || 'localhost',
@@ -124,6 +151,9 @@ async function runMigrations() {
     }
 
     console.log('Migrations completed successfully');
+
+    // Auto-seed first API key
+    await seedDefaultApiKey(connection);
   } catch (error) {
     console.error('Migration failed:', error.message);
     process.exit(1);
