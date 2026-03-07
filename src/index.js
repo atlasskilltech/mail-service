@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const config = require('./config');
 const logger = require('./utils/logger');
 const { apiLimiter } = require('./middleware/rateLimiter');
@@ -35,14 +36,23 @@ app.use((req, res, next) => {
   next();
 });
 
-// Routes
+// API Routes
 app.use('/', healthRoutes);
 app.use('/email', emailRoutes);
 app.use('/templates', templateRoutes);
 app.use('/bounces', bounceRoutes);
 
+// Dashboard (static files)
+app.use(express.static(path.join(__dirname, '..', 'public')));
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+});
+
 // 404 handler
 app.use((req, res) => {
+  if (req.accepts('html')) {
+    return res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+  }
   res.status(404).json({ error: 'Route not found' });
 });
 

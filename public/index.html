@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mail Service Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .fade-in { animation: fadeIn 0.3s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .sidebar-link.active { background-color: #eff6ff; color: #2563eb; border-right: 3px solid #2563eb; }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
+    .stat-card { transition: all 0.2s ease; }
+    .toast { animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s; }
+    @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+  </style>
+</head>
+<body class="h-full">
+  <div class="flex h-full">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full">
+      <div class="p-6 border-b border-gray-200">
+        <h1 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          Mail Service
+        </h1>
+        <p class="text-xs text-gray-500 mt-1">Dashboard</p>
+      </div>
+      <nav class="flex-1 p-4 space-y-1">
+        <a href="#" onclick="showPage('dashboard')" id="nav-dashboard" class="sidebar-link active flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+          Dashboard
+        </a>
+        <a href="#" onclick="showPage('send-email')" id="nav-send-email" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+          Send Email
+        </a>
+        <a href="#" onclick="showPage('email-logs')" id="nav-email-logs" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Email Logs
+        </a>
+        <a href="#" onclick="showPage('templates')" id="nav-templates" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm0 8a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zm10 0a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1h-4a1 1 0 01-1-1v-6z"/></svg>
+          Templates
+        </a>
+        <a href="#" onclick="showPage('bounces')" id="nav-bounces" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          Bounces
+        </a>
+        <a href="#" onclick="showPage('suppression')" id="nav-suppression" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+          Suppression List
+        </a>
+      </nav>
+      <div class="p-4 border-t border-gray-200">
+        <div class="flex items-center gap-2 text-xs text-gray-500">
+          <span id="health-dot" class="w-2 h-2 rounded-full bg-gray-400"></span>
+          <span id="health-text">Checking...</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 ml-64 overflow-y-auto">
+      <!-- Top Bar -->
+      <header class="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between sticky top-0 z-10">
+        <h2 id="page-title" class="text-lg font-semibold text-gray-900">Dashboard</h2>
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
+            <label class="text-sm text-gray-600">API Key:</label>
+            <input type="text" id="api-key-input" placeholder="Enter your API key" class="text-sm border border-gray-300 rounded-lg px-3 py-1.5 w-64 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+          </div>
+        </div>
+      </header>
+
+      <div class="p-8">
+        <!-- Dashboard Page -->
+        <div id="page-dashboard" class="page fade-in">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="stat-card bg-white rounded-xl border border-gray-200 p-6 cursor-default">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Total Sent</p>
+                  <p id="stat-sent" class="text-3xl font-bold text-gray-900 mt-1">-</p>
+                </div>
+                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                  <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                </div>
+              </div>
+            </div>
+            <div class="stat-card bg-white rounded-xl border border-gray-200 p-6 cursor-default">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Queued</p>
+                  <p id="stat-queued" class="text-3xl font-bold text-gray-900 mt-1">-</p>
+                </div>
+                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+              </div>
+            </div>
+            <div class="stat-card bg-white rounded-xl border border-gray-200 p-6 cursor-default">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Failed</p>
+                  <p id="stat-failed" class="text-3xl font-bold text-gray-900 mt-1">-</p>
+                </div>
+                <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                  <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </div>
+              </div>
+            </div>
+            <div class="stat-card bg-white rounded-xl border border-gray-200 p-6 cursor-default">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Bounced</p>
+                  <p id="stat-bounced" class="text-3xl font-bold text-gray-900 mt-1">-</p>
+                </div>
+                <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
+                  <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 class="text-base font-semibold text-gray-900 mb-4">Service Health</h3>
+              <div id="health-details" class="space-y-3">
+                <p class="text-sm text-gray-500">Loading...</p>
+              </div>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 class="text-base font-semibold text-gray-900 mb-4">Quick Actions</h3>
+              <div class="grid grid-cols-2 gap-3">
+                <button onclick="showPage('send-email')" class="flex items-center gap-2 px-4 py-3 bg-primary-50 text-primary-700 rounded-lg hover:bg-primary-100 transition-colors text-sm font-medium">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                  Send Email
+                </button>
+                <button onclick="showPage('templates')" class="flex items-center gap-2 px-4 py-3 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors text-sm font-medium">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                  New Template
+                </button>
+                <button onclick="showPage('email-logs')" class="flex items-center gap-2 px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                  View Logs
+                </button>
+                <button onclick="showPage('suppression')" class="flex items-center gap-2 px-4 py-3 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors text-sm font-medium">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                  Suppression
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Send Email Page -->
+        <div id="page-send-email" class="page hidden fade-in">
+          <div class="max-w-2xl">
+            <div class="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 class="text-base font-semibold text-gray-900 mb-6">Compose Email</h3>
+              <form id="send-email-form" class="space-y-5">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">To <span class="text-red-500">*</span></label>
+                  <input type="email" id="email-to" required placeholder="recipient@example.com" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+                  <p class="text-xs text-gray-500 mt-1">Separate multiple emails with commas</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">From (optional)</label>
+                  <input type="email" id="email-from" placeholder="sender@yourdomain.com" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Reply To (optional)</label>
+                  <input type="email" id="email-reply-to" placeholder="reply@yourdomain.com" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Template (optional)</label>
+                  <select id="email-template" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
+                    <option value="">-- No template (custom content) --</option>
+                  </select>
+                </div>
+                <div id="template-vars-section" class="hidden">
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Template Variables</label>
+                  <div id="template-vars" class="space-y-2"></div>
+                </div>
+                <div id="custom-content-section">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Subject <span class="text-red-500">*</span></label>
+                    <input type="text" id="email-subject" placeholder="Email subject" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+                  </div>
+                  <div class="mt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">HTML Body</label>
+                    <textarea id="email-html" rows="6" placeholder="<h1>Hello</h1><p>Your email content...</p>" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none font-mono"></textarea>
+                  </div>
+                  <div class="mt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Plain Text (optional)</label>
+                    <textarea id="email-text" rows="3" placeholder="Plain text version..." class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"></textarea>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3 pt-2">
+                  <button type="submit" class="bg-primary-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                    Send Email
+                  </button>
+                  <button type="reset" class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Clear</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Email Logs Page -->
+        <div id="page-email-logs" class="page hidden fade-in">
+          <div class="bg-white rounded-xl border border-gray-200">
+            <div class="p-6 border-b border-gray-200 flex items-center justify-between flex-wrap gap-4">
+              <h3 class="text-base font-semibold text-gray-900">Email Logs</h3>
+              <div class="flex items-center gap-3">
+                <input type="email" id="logs-search" placeholder="Search by recipient..." class="text-sm border border-gray-300 rounded-lg px-4 py-2 w-64 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+                <select id="logs-status-filter" class="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
+                  <option value="">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="queued">Queued</option>
+                  <option value="sent">Sent</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="failed">Failed</option>
+                  <option value="bounced">Bounced</option>
+                </select>
+                <button onclick="loadEmailLogs()" class="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">Search</button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead>
+                  <tr class="bg-gray-50 border-b border-gray-200">
+                    <th class="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">ID</th>
+                    <th class="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Recipient</th>
+                    <th class="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Subject</th>
+                    <th class="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Template</th>
+                    <th class="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Status</th>
+                    <th class="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Date</th>
+                  </tr>
+                </thead>
+                <tbody id="logs-table-body" class="divide-y divide-gray-200">
+                  <tr><td colspan="6" class="px-6 py-12 text-center text-sm text-gray-500">Enter a recipient email or select a status to search</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Templates Page -->
+        <div id="page-templates" class="page hidden fade-in">
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-base font-semibold text-gray-900">Email Templates</h3>
+            <button onclick="openTemplateModal()" class="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              New Template
+            </button>
+          </div>
+          <div id="templates-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <p class="text-sm text-gray-500 col-span-full text-center py-12">Loading templates...</p>
+          </div>
+        </div>
+
+        <!-- Bounces Page -->
+        <div id="page-bounces" class="page hidden fade-in">
+          <div class="bg-white rounded-xl border border-gray-200">
+            <div class="p-6 border-b border-gray-200 flex items-center justify-between flex-wrap gap-4">
+              <h3 class="text-base font-semibold text-gray-900">Bounce Records</h3>
+              <div class="flex items-center gap-3">
+                <input type="email" id="bounce-search" placeholder="Search by email..." class="text-sm border border-gray-300 rounded-lg px-4 py-2 w-64 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+                <button onclick="loadBounces()" class="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">Search</button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead>
+                  <tr class="bg-gray-50 border-b border-gray-200">
+                    <th class="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Email</th>
+                    <th class="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Type</th>
+                    <th class="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Subtype</th>
+                    <th class="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Message ID</th>
+                    <th class="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Date</th>
+                  </tr>
+                </thead>
+                <tbody id="bounces-table-body" class="divide-y divide-gray-200">
+                  <tr><td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500">Enter an email to search bounces</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Suppression List Page -->
+        <div id="page-suppression" class="page hidden fade-in">
+          <div class="bg-white rounded-xl border border-gray-200">
+            <div class="p-6 border-b border-gray-200 flex items-center justify-between flex-wrap gap-4">
+              <h3 class="text-base font-semibold text-gray-900">Suppression List</h3>
+              <button onclick="openSuppressionModal()" class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Add to Suppression
+              </button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead>
+                  <tr class="bg-gray-50 border-b border-gray-200">
+                    <th class="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Email</th>
+                    <th class="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Reason</th>
+                    <th class="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Date Added</th>
+                    <th class="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="suppression-table-body" class="divide-y divide-gray-200">
+                  <tr><td colspan="4" class="px-6 py-12 text-center text-sm text-gray-500">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Template Modal -->
+  <div id="template-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+        <h3 id="template-modal-title" class="text-lg font-semibold text-gray-900">New Template</h3>
+        <button onclick="closeTemplateModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form id="template-form" class="p-6 space-y-4">
+        <input type="hidden" id="template-id">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Name <span class="text-red-500">*</span></label>
+          <input type="text" id="tpl-name" required pattern="[a-zA-Z0-9_-]+" placeholder="template_name" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
+          <input type="text" id="tpl-description" placeholder="Brief description of this template" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Subject <span class="text-red-500">*</span></label>
+          <input type="text" id="tpl-subject" required placeholder="Welcome {{name}}" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">HTML Body <span class="text-red-500">*</span></label>
+          <textarea id="tpl-html" required rows="6" placeholder="<h1>Hello {{name}}</h1>" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none font-mono"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Plain Text</label>
+          <textarea id="tpl-text" rows="3" placeholder="Hello {{name}}" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Variables (comma separated)</label>
+          <input type="text" id="tpl-variables" placeholder="name, email, company" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+        </div>
+        <div class="flex items-center gap-3 pt-2">
+          <button type="submit" class="bg-primary-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">Save Template</button>
+          <button type="button" onclick="closeTemplateModal()" class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Suppression Modal -->
+  <div id="suppression-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md">
+      <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-900">Add to Suppression List</h3>
+        <button onclick="closeSuppressionModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form id="suppression-form" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Email <span class="text-red-500">*</span></label>
+          <input type="email" id="suppress-email" required placeholder="user@example.com" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Reason</label>
+          <select id="suppress-reason" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
+            <option value="manual">Manual</option>
+            <option value="hard_bounce">Hard Bounce</option>
+            <option value="complaint">Complaint</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Notes</label>
+          <input type="text" id="suppress-notes" placeholder="Optional notes..." class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+        </div>
+        <div class="flex items-center gap-3 pt-2">
+          <button type="submit" class="bg-red-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">Add to List</button>
+          <button type="button" onclick="closeSuppressionModal()" class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
