@@ -47,7 +47,9 @@ const pageTitles = {
   'api-keys': 'API Keys',
   'webhooks': 'Webhooks',
   'api-docs': 'API Documentation',
-  'template-editor': 'Template Editor'
+  'template-editor': 'Template Editor',
+  'contacts': 'Contacts',
+  'contact-lists': 'Lists & Segments'
 };
 
 function showPage(page) {
@@ -72,6 +74,8 @@ function showPage(page) {
   if (page === 'webhooks') loadWebhooks();
   if (page === 'api-docs') initApiDocs();
   if (page === 'template-editor') initTemplateEditor();
+  if (page === 'contacts') loadContacts();
+  if (page === 'contact-lists') loadContactLists();
 }
 
 // Status badge helper

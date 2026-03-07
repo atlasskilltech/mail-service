@@ -98,6 +98,62 @@ const migrations = [
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
+  // Contacts table
+  `CREATE TABLE IF NOT EXISTS contacts (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    first_name VARCHAR(255) DEFAULT NULL,
+    last_name VARCHAR(255) DEFAULT NULL,
+    phone VARCHAR(50) DEFAULT NULL,
+    city VARCHAR(255) DEFAULT NULL,
+    country VARCHAR(255) DEFAULT NULL,
+    company VARCHAR(255) DEFAULT NULL,
+    status ENUM('subscribed', 'unsubscribed', 'bounced', 'complained') NOT NULL DEFAULT 'subscribed',
+    custom_fields JSON DEFAULT NULL,
+    tags JSON DEFAULT NULL,
+    source VARCHAR(100) DEFAULT 'manual',
+    last_emailed_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_email (email),
+    INDEX idx_status (status),
+    INDEX idx_city (city),
+    INDEX idx_source (source),
+    INDEX idx_created_at (created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // Contact Lists table
+  `CREATE TABLE IF NOT EXISTS contact_lists (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    description VARCHAR(500) DEFAULT NULL,
+    color VARCHAR(7) DEFAULT '#3b82f6',
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // List Members (many-to-many: contacts <-> lists)
+  `CREATE TABLE IF NOT EXISTS list_members (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    list_id INT UNSIGNED NOT NULL,
+    contact_id BIGINT UNSIGNED NOT NULL,
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_list_contact (list_id, contact_id),
+    INDEX idx_list_id (list_id),
+    INDEX idx_contact_id (contact_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // Segments table (saved filters)
+  `CREATE TABLE IF NOT EXISTS segments (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description VARCHAR(500) DEFAULT NULL,
+    conditions JSON NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
   // Seed default templates
   `INSERT IGNORE INTO email_templates (name, subject, body_html, body_text, variables, description) VALUES
   ('welcome', 'Welcome {{name}}', '<h1>Welcome {{name}}</h1><p>Thank you for joining us.</p>', 'Welcome {{name}}\\nThank you for joining us.', '["name"]', 'Welcome email for new users'),
