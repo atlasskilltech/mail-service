@@ -63,7 +63,7 @@ function renderContactsTable(contacts) {
       bounced: 'bg-red-100 text-red-700',
       complained: 'bg-red-100 text-red-700'
     };
-    const date = new Date(c.created_at).toLocaleDateString();
+    const date = new Date(c.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric' });
 
     return `<tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
       <td class="py-3 px-4 font-mono text-xs text-gray-900">${escapeHtml(c.email)}</td>
