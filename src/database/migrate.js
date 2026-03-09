@@ -154,6 +154,127 @@ const migrations = [
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
+  // Campaigns table
+  `CREATE TABLE IF NOT EXISTS campaigns (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    campaign_name VARCHAR(255) NOT NULL,
+    subject VARCHAR(500) NOT NULL,
+    template_id INT UNSIGNED DEFAULT NULL,
+    list_id INT UNSIGNED DEFAULT NULL,
+    segment_id INT UNSIGNED DEFAULT NULL,
+    sender_email VARCHAR(255) DEFAULT NULL,
+    reply_to VARCHAR(255) DEFAULT NULL,
+    template_data JSON DEFAULT NULL,
+    status ENUM('draft', 'scheduled', 'sending', 'paused', 'completed', 'cancelled') NOT NULL DEFAULT 'draft',
+    scheduled_at TIMESTAMP NULL DEFAULT NULL,
+    started_at TIMESTAMP NULL DEFAULT NULL,
+    completed_at TIMESTAMP NULL DEFAULT NULL,
+    total_recipients INT UNSIGNED NOT NULL DEFAULT 0,
+    sent_count INT UNSIGNED NOT NULL DEFAULT 0,
+    failed_count INT UNSIGNED NOT NULL DEFAULT 0,
+    open_count INT UNSIGNED NOT NULL DEFAULT 0,
+    click_count INT UNSIGNED NOT NULL DEFAULT 0,
+    bounce_count INT UNSIGNED NOT NULL DEFAULT 0,
+    unsubscribe_count INT UNSIGNED NOT NULL DEFAULT 0,
+    tags JSON DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_status (status),
+    INDEX idx_scheduled_at (scheduled_at),
+    INDEX idx_list_id (list_id),
+    INDEX idx_created_at (created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // Campaign recipients tracking
+  `CREATE TABLE IF NOT EXISTS campaign_recipients (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    campaign_id BIGINT UNSIGNED NOT NULL,
+    contact_id BIGINT UNSIGNED NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    email_log_id BIGINT UNSIGNED DEFAULT NULL,
+    status ENUM('pending', 'queued', 'sent', 'delivered', 'failed', 'bounced', 'skipped') NOT NULL DEFAULT 'pending',
+    opened_at TIMESTAMP NULL DEFAULT NULL,
+    clicked_at TIMESTAMP NULL DEFAULT NULL,
+    open_count INT UNSIGNED NOT NULL DEFAULT 0,
+    click_count INT UNSIGNED NOT NULL DEFAULT 0,
+    error_message TEXT DEFAULT NULL,
+    sent_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_campaign_id (campaign_id),
+    INDEX idx_contact_id (contact_id),
+    INDEX idx_email (email),
+    INDEX idx_status (status),
+    INDEX idx_campaign_status (campaign_id, status),
+    UNIQUE KEY uk_campaign_contact (campaign_id, contact_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // Email tracking events (opens & clicks)
+  `CREATE TABLE IF NOT EXISTS tracking_events (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tracking_id VARCHAR(64) NOT NULL,
+    campaign_id BIGINT UNSIGNED DEFAULT NULL,
+    campaign_recipient_id BIGINT UNSIGNED DEFAULT NULL,
+    email_log_id BIGINT UNSIGNED DEFAULT NULL,
+    email VARCHAR(255) NOT NULL,
+    event_type ENUM('open', 'click') NOT NULL,
+    link_url TEXT DEFAULT NULL,
+    user_agent TEXT DEFAULT NULL,
+    ip_address VARCHAR(45) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_tracking_id (tracking_id),
+    INDEX idx_campaign_id (campaign_id),
+    INDEX idx_email (email),
+    INDEX idx_event_type (event_type),
+    INDEX idx_created_at (created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // Automation workflows
+  `CREATE TABLE IF NOT EXISTS automations (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description VARCHAR(500) DEFAULT NULL,
+    trigger_type ENUM('signup', 'tag_added', 'list_added', 'date_field', 'manual') NOT NULL,
+    trigger_config JSON DEFAULT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 0,
+    total_entered INT UNSIGNED NOT NULL DEFAULT 0,
+    total_completed INT UNSIGNED NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_trigger_type (trigger_type),
+    INDEX idx_is_active (is_active)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // Automation steps
+  `CREATE TABLE IF NOT EXISTS automation_steps (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    automation_id INT UNSIGNED NOT NULL,
+    step_order INT UNSIGNED NOT NULL,
+    action_type ENUM('send_email', 'wait', 'condition', 'add_tag', 'remove_tag', 'move_to_list') NOT NULL,
+    config JSON NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_automation_id (automation_id),
+    UNIQUE KEY uk_automation_step (automation_id, step_order)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // Automation enrollments (contacts in automation)
+  `CREATE TABLE IF NOT EXISTS automation_enrollments (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    automation_id INT UNSIGNED NOT NULL,
+    contact_id BIGINT UNSIGNED NOT NULL,
+    current_step INT UNSIGNED NOT NULL DEFAULT 0,
+    status ENUM('active', 'completed', 'paused', 'failed') NOT NULL DEFAULT 'active',
+    next_action_at TIMESTAMP NULL DEFAULT NULL,
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_automation_id (automation_id),
+    INDEX idx_contact_id (contact_id),
+    INDEX idx_status (status),
+    INDEX idx_next_action (next_action_at),
+    UNIQUE KEY uk_automation_contact (automation_id, contact_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
   // Seed default templates
   `INSERT IGNORE INTO email_templates (name, subject, body_html, body_text, variables, description) VALUES
   ('welcome', 'Welcome {{name}}', '<h1>Welcome {{name}}</h1><p>Thank you for joining us.</p>', 'Welcome {{name}}\\nThank you for joining us.', '["name"]', 'Welcome email for new users'),

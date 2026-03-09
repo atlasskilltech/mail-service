@@ -7,6 +7,8 @@
     "start": "node src/index.js",
     "start:worker": "node src/workers/emailWorker.js",
     "start:bounce-handler": "node src/workers/bounceHandler.js",
+    "start:campaign-worker": "node src/workers/campaignWorker.js",
+    "start:automation-worker": "node src/workers/automationWorker.js",
     "dev": "nodemon src/index.js",
     "dev:worker": "nodemon src/workers/emailWorker.js",
     "migrate": "node src/database/migrate.js",

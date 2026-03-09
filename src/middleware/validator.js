@@ -112,4 +112,41 @@ function validateSuppressionAdd(req, res, next) {
   next();
 }
 
-module.exports = { validateSendEmail, validateBulkSend, validateTemplate, validateSuppressionAdd };
+function validateCampaign(req, res, next) {
+  const { campaignName, subject, templateId } = req.body;
+  const errors = [];
+  if (!campaignName) errors.push('Campaign name is required');
+  if (!subject) errors.push('Subject is required');
+  if (!templateId) errors.push('Template ID is required');
+  if (errors.length > 0) return res.status(400).json({ error: 'Validation failed', details: errors });
+  next();
+}
+
+function validateAutomation(req, res, next) {
+  const { name, triggerType } = req.body;
+  const errors = [];
+  if (!name) errors.push('Automation name is required');
+  if (!triggerType) errors.push('Trigger type is required');
+  const validTriggers = ['signup', 'tag_added', 'list_added', 'date_field', 'manual'];
+  if (triggerType && !validTriggers.includes(triggerType)) {
+    errors.push(`Trigger type must be one of: ${validTriggers.join(', ')}`);
+  }
+  if (errors.length > 0) return res.status(400).json({ error: 'Validation failed', details: errors });
+  next();
+}
+
+function validateAutomationStep(req, res, next) {
+  const { stepOrder, actionType, config } = req.body;
+  const errors = [];
+  if (stepOrder === undefined || stepOrder === null) errors.push('Step order is required');
+  if (!actionType) errors.push('Action type is required');
+  const validActions = ['send_email', 'wait', 'condition', 'add_tag', 'remove_tag', 'move_to_list'];
+  if (actionType && !validActions.includes(actionType)) {
+    errors.push(`Action type must be one of: ${validActions.join(', ')}`);
+  }
+  if (!config || typeof config !== 'object') errors.push('Config object is required');
+  if (errors.length > 0) return res.status(400).json({ error: 'Validation failed', details: errors });
+  next();
+}
+
+module.exports = { validateSendEmail, validateBulkSend, validateTemplate, validateSuppressionAdd, validateCampaign, validateAutomation, validateAutomationStep };
