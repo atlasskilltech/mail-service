@@ -106,6 +106,79 @@ const blockDefaults = {
       btnText: 'Start Free Trial', btnColor: '#ffffff', btnTextColor: '#667eea',
       btnLink: '#', btnRadius: '8'
     }
+  }),
+  'video': () => ({
+    type: 'video',
+    props: { thumbnailUrl: '', videoUrl: '#', padding: '16', align: 'center', borderRadius: '8', overlayColor: 'rgba(0,0,0,0.35)' }
+  }),
+  'list': () => ({
+    type: 'list',
+    props: { padding: '16', textColor: '#51545e', fontSize: '15', lineHeight: '1.8', iconColor: '#3b82f6', style: 'check' },
+    items: ['First item in the list', 'Second item goes here', 'Third item with details']
+  }),
+  'countdown': () => ({
+    type: 'countdown',
+    content: 'Offer Ends Soon!',
+    props: { bgColor: '#1e293b', textColor: '#ffffff', fontSize: '20', padding: '32', align: 'center',
+      labelColor: '#94a3b8', boxBg: '#334155', boxColor: '#f1f5f9',
+      days: '07', hours: '12', minutes: '30', seconds: '00',
+      subtitle: 'Don\'t miss out on this limited-time deal'
+    }
+  }),
+  'image-text': () => ({
+    type: 'image-text',
+    content: '<h3 style="margin:0 0 8px 0;color:#1f2937;font-size:18px;">Feature Highlight</h3><p style="margin:0;color:#6b7280;font-size:14px;line-height:1.6;">Describe your feature or product here. Add compelling copy that drives action.</p>',
+    props: { padding: '24', imageUrl: '', imagePosition: 'left', imageWidth: '40', borderRadius: '8', bgColor: '#ffffff' }
+  }),
+  'three-columns': () => ({
+    type: 'three-columns',
+    props: { padding: '16', gap: '12', bgColor: 'transparent' },
+    col1: { content: '<p style="margin:0;color:#51545e;font-size:14px;text-align:center;">Column 1</p>' },
+    col2: { content: '<p style="margin:0;color:#51545e;font-size:14px;text-align:center;">Column 2</p>' },
+    col3: { content: '<p style="margin:0;color:#51545e;font-size:14px;text-align:center;">Column 3</p>' }
+  }),
+  'pricing': () => ({
+    type: 'pricing',
+    content: 'Pro Plan',
+    props: { padding: '24', bgColor: '#ffffff', borderColor: '#e5e7eb', accentColor: '#3b82f6',
+      price: '$29', period: '/month', description: 'Perfect for growing businesses',
+      btnText: 'Get Started', btnLink: '#', btnColor: '#3b82f6', btnTextColor: '#ffffff'
+    },
+    features: ['Unlimited emails', 'Advanced analytics', 'Priority support', 'Custom templates']
+  }),
+  'logo-row': () => ({
+    type: 'logo-row',
+    props: { padding: '24', bgColor: '#f9fafb', title: 'Trusted By', titleColor: '#9ca3af', logoHeight: '32' },
+    logos: [
+      { src: '', alt: 'Company 1' },
+      { src: '', alt: 'Company 2' },
+      { src: '', alt: 'Company 3' },
+      { src: '', alt: 'Company 4' }
+    ]
+  }),
+  'coupon': () => ({
+    type: 'coupon',
+    content: 'SAVE20NOW',
+    props: { padding: '32', bgColor: '#fef3c7', borderColor: '#f59e0b', textColor: '#92400e',
+      title: 'Special Offer!', titleColor: '#92400e', titleSize: '22',
+      description: 'Use this code at checkout to get 20% off your next order.',
+      codeSize: '28', codeBg: '#ffffff'
+    }
+  }),
+  'alert': () => ({
+    type: 'alert',
+    content: 'This is an important notice for all subscribers.',
+    props: { padding: '16', style: 'info', fontSize: '14', borderRadius: '8' }
+  }),
+  'table': () => ({
+    type: 'table',
+    props: { padding: '16', headerBg: '#f1f5f9', headerColor: '#334155', borderColor: '#e2e8f0', fontSize: '13' },
+    headers: ['Item', 'Qty', 'Price'],
+    rows: [
+      ['Product A', '1', '$29.00'],
+      ['Product B', '2', '$49.00'],
+      ['Total', '', '$127.00']
+    ]
   })
 };
 
@@ -444,6 +517,135 @@ function renderBlockHtml(block) {
         ${p.btnText ? `<a href="${escapeHtml(p.btnLink||'#')}" style="display:inline-block;background:${p.btnColor||'#fff'};color:${p.btnTextColor||'#667eea'};padding:14px 36px;border-radius:${p.btnRadius||8}px;font-weight:bold;text-decoration:none;font-size:16px;font-family:Helvetica,Arial,sans-serif;">${p.btnText}</a>` : ''}
       </div>`;
 
+    case 'video': {
+      const thumb = p.src || p.thumbnailUrl;
+      if (!thumb) {
+        return `<div style="padding:${p.padding||16}px;text-align:${p.align||'center'};">
+          <div style="background:#1a1a2e;border-radius:${p.borderRadius||8}px;padding:60px 20px;text-align:center;position:relative;">
+            <div style="width:60px;height:60px;margin:0 auto;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;">
+              <svg style="width:28px;height:28px;color:#fff;margin-left:4px;" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            </div>
+            <p style="color:#94a3b8;font-size:13px;margin:12px 0 0;font-family:Helvetica,Arial,sans-serif;">Add video thumbnail URL in properties</p>
+          </div></div>`;
+      }
+      return `<div style="padding:${p.padding||16}px;text-align:${p.align||'center'};">
+        <a href="${escapeHtml(p.videoUrl||'#')}" style="display:block;position:relative;border-radius:${p.borderRadius||8}px;overflow:hidden;text-decoration:none;">
+          <img src="${escapeHtml(thumb)}" alt="Video" style="width:100%;display:block;border-radius:${p.borderRadius||8}px;">
+          <div style="position:absolute;inset:0;background:${p.overlayColor||'rgba(0,0,0,0.35)'};display:flex;align-items:center;justify-content:center;">
+            <div style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.9);display:flex;align-items:center;justify-content:center;">
+              <svg style="width:28px;height:28px;color:#333;margin-left:3px;" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            </div>
+          </div>
+        </a></div>`;
+    }
+
+    case 'list': {
+      const items = block.items || [];
+      const icons = { check: '&#10003;', arrow: '&#10148;', dot: '&#8226;', star: '&#9733;', number: '' };
+      const iconChar = icons[p.style] || '&#10003;';
+      const listHtml = items.map((item, i) => {
+        const icon = p.style === 'number' ? `${i+1}.` : iconChar;
+        return `<tr><td style="padding:4px 12px 4px 0;vertical-align:top;color:${p.iconColor||'#3b82f6'};font-weight:bold;font-size:${p.fontSize||15}px;font-family:Helvetica,Arial,sans-serif;width:24px;">${icon}</td><td style="padding:4px 0;color:${p.textColor||'#51545e'};font-size:${p.fontSize||15}px;line-height:${p.lineHeight||'1.8'};font-family:Helvetica,Arial,sans-serif;">${escapeHtml(item)}</td></tr>`;
+      }).join('');
+      return `<div style="padding:${p.padding||16}px;"><table cellpadding="0" cellspacing="0" role="presentation">${listHtml}</table></div>`;
+    }
+
+    case 'countdown':
+      return `<div style="background:${p.bgColor||'#1e293b'};padding:${p.padding||32}px;text-align:${p.align||'center'};">
+        <p style="color:${p.textColor||'#fff'};font-size:${p.fontSize||20}px;font-weight:bold;margin:0 0 8px;font-family:Helvetica,Arial,sans-serif;">${block.content}</p>
+        ${p.subtitle ? `<p style="color:${p.labelColor||'#94a3b8'};font-size:14px;margin:0 0 20px;font-family:Helvetica,Arial,sans-serif;">${escapeHtml(p.subtitle)}</p>` : ''}
+        <table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;"><tr>
+          ${['days','hours','minutes','seconds'].map(u => `<td style="padding:0 8px;text-align:center;">
+            <div style="background:${p.boxBg||'#334155'};border-radius:8px;padding:12px 16px;min-width:56px;">
+              <div style="color:${p.boxColor||'#f1f5f9'};font-size:28px;font-weight:bold;font-family:Helvetica,Arial,sans-serif;">${p[u]||'00'}</div>
+              <div style="color:${p.labelColor||'#94a3b8'};font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-top:4px;font-family:Helvetica,Arial,sans-serif;">${u}</div>
+            </div></td>`).join('')}
+        </tr></table>
+      </div>`;
+
+    case 'image-text': {
+      const imgW = p.imageWidth || '40';
+      const txtW = 100 - parseInt(imgW);
+      const imgPlaceholder = `<div style="background:#f3f4f6;border:2px dashed #d1d5db;border-radius:${p.borderRadius||8}px;padding:40px 10px;text-align:center;color:#9ca3af;font-size:12px;">Image URL</div>`;
+      const imgHtml = p.imageUrl ? `<img src="${escapeHtml(p.imageUrl)}" alt="" style="width:100%;border-radius:${p.borderRadius||8}px;display:block;">` : imgPlaceholder;
+      const isLeft = p.imagePosition !== 'right';
+      return `<div style="padding:${p.padding||24}px;background:${p.bgColor||'#fff'};">
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
+          ${isLeft ? `<td width="${imgW}%" valign="middle" style="padding-right:16px;">${imgHtml}</td><td width="${txtW}%" valign="middle">${block.content}</td>` :
+            `<td width="${txtW}%" valign="middle" style="padding-right:16px;">${block.content}</td><td width="${imgW}%" valign="middle">${imgHtml}</td>`}
+        </tr></table></div>`;
+    }
+
+    case 'three-columns':
+      return `<div style="padding:${p.padding||16}px;background:${p.bgColor||'transparent'};">
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
+          <td width="32%" valign="top" style="padding-right:${(p.gap||12)/2}px;">${block.col1?.content||''}</td>
+          <td width="34%" valign="top" style="padding:0 ${(p.gap||12)/2}px;">${block.col2?.content||''}</td>
+          <td width="32%" valign="top" style="padding-left:${(p.gap||12)/2}px;">${block.col3?.content||''}</td>
+        </tr></table></div>`;
+
+    case 'pricing': {
+      const feats = block.features || [];
+      const featHtml = feats.map(f => `<tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:14px;color:#374151;font-family:Helvetica,Arial,sans-serif;">&#10003;&nbsp; ${escapeHtml(f)}</td></tr>`).join('');
+      return `<div style="padding:${p.padding||24}px;">
+        <div style="border:2px solid ${p.borderColor||'#e5e7eb'};border-radius:12px;overflow:hidden;text-align:center;">
+          <div style="background:${p.accentColor||'#3b82f6'};padding:20px;"><h3 style="margin:0;color:#fff;font-size:20px;font-weight:bold;font-family:Helvetica,Arial,sans-serif;">${block.content}</h3></div>
+          <div style="padding:24px;">
+            <div style="margin-bottom:8px;"><span style="font-size:40px;font-weight:bold;color:#1f2937;font-family:Helvetica,Arial,sans-serif;">${escapeHtml(p.price||'$0')}</span><span style="color:#6b7280;font-size:16px;">${escapeHtml(p.period||'/mo')}</span></div>
+            ${p.description ? `<p style="color:#6b7280;font-size:14px;margin:0 0 20px;font-family:Helvetica,Arial,sans-serif;">${escapeHtml(p.description)}</p>` : ''}
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">${featHtml}</table>
+            ${p.btnText ? `<a href="${escapeHtml(p.btnLink||'#')}" style="display:inline-block;background:${p.btnColor||'#3b82f6'};color:${p.btnTextColor||'#fff'};padding:12px 32px;border-radius:8px;font-weight:bold;text-decoration:none;font-size:15px;font-family:Helvetica,Arial,sans-serif;">${escapeHtml(p.btnText)}</a>` : ''}
+          </div>
+        </div></div>`;
+    }
+
+    case 'logo-row': {
+      const logos = block.logos || [];
+      const cells = logos.map(l => {
+        const content = l.src ? `<img src="${escapeHtml(l.src)}" alt="${escapeHtml(l.alt||'')}" style="height:${p.logoHeight||32}px;max-width:120px;opacity:0.6;">` :
+          `<span style="color:#d1d5db;font-size:12px;font-family:Helvetica,Arial,sans-serif;">${escapeHtml(l.alt||'Logo')}</span>`;
+        return `<td style="text-align:center;padding:8px 16px;">${content}</td>`;
+      }).join('');
+      return `<div style="padding:${p.padding||24}px;background:${p.bgColor||'#f9fafb'};text-align:center;">
+        ${p.title ? `<p style="color:${p.titleColor||'#9ca3af'};font-size:11px;text-transform:uppercase;letter-spacing:2px;margin:0 0 16px;font-family:Helvetica,Arial,sans-serif;">${escapeHtml(p.title)}</p>` : ''}
+        <table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;"><tr>${cells}</tr></table>
+      </div>`;
+    }
+
+    case 'coupon':
+      return `<div style="padding:${p.padding||32}px;background:${p.bgColor||'#fef3c7'};text-align:center;">
+        ${p.title ? `<p style="color:${p.titleColor||'#92400e'};font-size:${p.titleSize||22}px;font-weight:bold;margin:0 0 8px;font-family:Helvetica,Arial,sans-serif;">${escapeHtml(p.title)}</p>` : ''}
+        ${p.description ? `<p style="color:${p.textColor||'#92400e'};font-size:14px;margin:0 0 20px;font-family:Helvetica,Arial,sans-serif;">${escapeHtml(p.description)}</p>` : ''}
+        <div style="display:inline-block;background:${p.codeBg||'#fff'};border:2px dashed ${p.borderColor||'#f59e0b'};border-radius:8px;padding:12px 32px;">
+          <span style="font-size:${p.codeSize||28}px;font-weight:bold;color:${p.textColor||'#92400e'};letter-spacing:3px;font-family:Courier,monospace;">${block.content}</span>
+        </div>
+      </div>`;
+
+    case 'alert': {
+      const styles = {
+        info: { bg: '#eff6ff', border: '#3b82f6', color: '#1e40af', icon: 'ℹ️' },
+        success: { bg: '#f0fdf4', border: '#22c55e', color: '#166534', icon: '✅' },
+        warning: { bg: '#fffbeb', border: '#f59e0b', color: '#92400e', icon: '⚠️' },
+        error: { bg: '#fef2f2', border: '#ef4444', color: '#991b1b', icon: '❌' }
+      };
+      const s = styles[p.style] || styles.info;
+      return `<div style="padding:${p.padding||16}px;">
+        <div style="background:${s.bg};border-left:4px solid ${s.border};border-radius:${p.borderRadius||8}px;padding:16px 20px;">
+          <p style="margin:0;color:${s.color};font-size:${p.fontSize||14}px;line-height:1.5;font-family:Helvetica,Arial,sans-serif;">${s.icon}&nbsp; ${block.content}</p>
+        </div></div>`;
+    }
+
+    case 'table': {
+      const hdrs = block.headers || [];
+      const rows = block.rows || [];
+      const thHtml = hdrs.map(h => `<th style="padding:10px 12px;background:${p.headerBg||'#f1f5f9'};color:${p.headerColor||'#334155'};font-size:${p.fontSize||13}px;text-align:left;border-bottom:2px solid ${p.borderColor||'#e2e8f0'};font-family:Helvetica,Arial,sans-serif;">${escapeHtml(h)}</th>`).join('');
+      const trHtml = rows.map(row => `<tr>${(Array.isArray(row)?row:[]).map(cell => `<td style="padding:10px 12px;font-size:${p.fontSize||13}px;color:#374151;border-bottom:1px solid ${p.borderColor||'#e2e8f0'};font-family:Helvetica,Arial,sans-serif;">${escapeHtml(cell)}</td>`).join('')}</tr>`).join('');
+      return `<div style="padding:${p.padding||16}px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid ${p.borderColor||'#e2e8f0'};border-radius:8px;overflow:hidden;">
+          <thead><tr>${thHtml}</tr></thead><tbody>${trHtml}</tbody>
+        </table></div>`;
+    }
+
     default:
       return `<div style="padding:16px;color:#999;text-align:center;">Unknown block: ${block.type}</div>`;
   }
@@ -621,6 +823,136 @@ function renderPropsPanel() {
       html += colorProp('Button Color', 'btnColor', p.btnColor || '#ffffff');
       html += colorProp('Button Text', 'btnTextColor', p.btnTextColor || '#667eea');
       break;
+
+    case 'video':
+      html += `<div class="prop-group"><label class="prop-label">Thumbnail URL</label><input class="prop-input" data-prop="thumbnailUrl" value="${escapeHtml(p.thumbnailUrl||'')}" placeholder="https://img.youtube.com/..." oninput="updateBlockProp(this)"></div>`;
+      html += `<div class="prop-group"><label class="prop-label">Video Link</label><input class="prop-input" data-prop="videoUrl" value="${escapeHtml(p.videoUrl||'#')}" placeholder="https://youtube.com/..." oninput="updateBlockProp(this)"></div>`;
+      html += rangeProp('Padding', 'padding', p.padding || 16, 0, 40);
+      html += rangeProp('Border Radius', 'borderRadius', p.borderRadius || 8, 0, 20);
+      html += alignProp(p.align || 'center');
+      break;
+
+    case 'list':
+      html += selectProp('List Style', 'style', p.style || 'check', ['check', 'arrow', 'dot', 'star', 'number']);
+      html += colorProp('Icon Color', 'iconColor', p.iconColor || '#3b82f6');
+      html += colorProp('Text Color', 'textColor', p.textColor || '#51545e');
+      html += rangeProp('Font Size', 'fontSize', p.fontSize || 15, 11, 22);
+      html += rangeProp('Padding', 'padding', p.padding || 16, 0, 40);
+      html += `<div class="prop-group"><label class="prop-label">List Items</label>`;
+      (block.items || []).forEach((item, i) => {
+        html += `<div class="flex gap-1 mb-2">
+          <input class="prop-input text-xs" data-list-idx="${i}" value="${escapeHtml(item)}" oninput="updateListItem(this)">
+          <button class="dnd-block-action delete flex-shrink-0" onclick="removeListItem(${i})" title="Remove"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+        </div>`;
+      });
+      html += `<button class="text-xs text-primary-600 hover:text-primary-700 font-medium mt-1" onclick="addListItem()">+ Add Item</button></div>`;
+      break;
+
+    case 'countdown':
+      html += colorProp('Background', 'bgColor', p.bgColor || '#1e293b');
+      html += colorProp('Text Color', 'textColor', p.textColor || '#ffffff');
+      html += rangeProp('Title Size', 'fontSize', p.fontSize || 20, 14, 36);
+      html += rangeProp('Padding', 'padding', p.padding || 32, 8, 60);
+      html += `<div class="prop-group"><label class="prop-label">Subtitle</label><input class="prop-input" data-prop="subtitle" value="${escapeHtml(p.subtitle||'')}" oninput="updateBlockProp(this)"></div>`;
+      html += `<div class="prop-group"><label class="prop-label">Values (displayed as-is)</label>
+        <div class="grid grid-cols-4 gap-1">
+          <input class="prop-input text-center text-xs" data-prop="days" value="${p.days||'00'}" placeholder="DD" oninput="updateBlockProp(this)">
+          <input class="prop-input text-center text-xs" data-prop="hours" value="${p.hours||'00'}" placeholder="HH" oninput="updateBlockProp(this)">
+          <input class="prop-input text-center text-xs" data-prop="minutes" value="${p.minutes||'00'}" placeholder="MM" oninput="updateBlockProp(this)">
+          <input class="prop-input text-center text-xs" data-prop="seconds" value="${p.seconds||'00'}" placeholder="SS" oninput="updateBlockProp(this)">
+        </div></div>`;
+      html += colorProp('Box Background', 'boxBg', p.boxBg || '#334155');
+      html += colorProp('Box Text', 'boxColor', p.boxColor || '#f1f5f9');
+      html += colorProp('Label Color', 'labelColor', p.labelColor || '#94a3b8');
+      break;
+
+    case 'image-text':
+      html += `<div class="prop-group"><label class="prop-label">Image URL</label><input class="prop-input" data-prop="imageUrl" value="${escapeHtml(p.imageUrl||'')}" placeholder="https://..." oninput="updateBlockProp(this)"></div>`;
+      html += selectProp('Image Position', 'imagePosition', p.imagePosition || 'left', ['left', 'right']);
+      html += rangeProp('Image Width %', 'imageWidth', p.imageWidth || 40, 20, 60);
+      html += rangeProp('Border Radius', 'borderRadius', p.borderRadius || 8, 0, 20);
+      html += rangeProp('Padding', 'padding', p.padding || 24, 0, 40);
+      html += colorProp('Background', 'bgColor', p.bgColor || '#ffffff');
+      html += `<div class="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-700">Edit text content in the Content field above (HTML supported).</div>`;
+      break;
+
+    case 'three-columns':
+      html += `<div class="prop-group"><label class="prop-label">Column 1 (HTML)</label><textarea class="prop-textarea font-mono text-xs" data-col="col1" oninput="updateThreeColumnContent(this)">${escapeHtml(block.col1?.content||'')}</textarea></div>`;
+      html += `<div class="prop-group"><label class="prop-label">Column 2 (HTML)</label><textarea class="prop-textarea font-mono text-xs" data-col="col2" oninput="updateThreeColumnContent(this)">${escapeHtml(block.col2?.content||'')}</textarea></div>`;
+      html += `<div class="prop-group"><label class="prop-label">Column 3 (HTML)</label><textarea class="prop-textarea font-mono text-xs" data-col="col3" oninput="updateThreeColumnContent(this)">${escapeHtml(block.col3?.content||'')}</textarea></div>`;
+      html += rangeProp('Padding', 'padding', p.padding || 16, 0, 40);
+      html += rangeProp('Gap', 'gap', p.gap || 12, 0, 30);
+      html += colorProp('Background', 'bgColor', p.bgColor || 'transparent');
+      break;
+
+    case 'pricing':
+      html += colorProp('Accent Color', 'accentColor', p.accentColor || '#3b82f6');
+      html += colorProp('Border', 'borderColor', p.borderColor || '#e5e7eb');
+      html += `<div class="prop-group"><label class="prop-label">Price</label><input class="prop-input" data-prop="price" value="${escapeHtml(p.price||'')}" oninput="updateBlockProp(this)"></div>`;
+      html += `<div class="prop-group"><label class="prop-label">Period</label><input class="prop-input" data-prop="period" value="${escapeHtml(p.period||'')}" oninput="updateBlockProp(this)"></div>`;
+      html += `<div class="prop-group"><label class="prop-label">Description</label><input class="prop-input" data-prop="description" value="${escapeHtml(p.description||'')}" oninput="updateBlockProp(this)"></div>`;
+      html += `<div class="prop-group"><label class="prop-label">Button Text</label><input class="prop-input" data-prop="btnText" value="${escapeHtml(p.btnText||'')}" oninput="updateBlockProp(this)"></div>`;
+      html += `<div class="prop-group"><label class="prop-label">Button Link</label><input class="prop-input" data-prop="btnLink" value="${escapeHtml(p.btnLink||'#')}" oninput="updateBlockProp(this)"></div>`;
+      html += colorProp('Button Color', 'btnColor', p.btnColor || '#3b82f6');
+      html += colorProp('Button Text', 'btnTextColor', p.btnTextColor || '#ffffff');
+      html += rangeProp('Padding', 'padding', p.padding || 24, 0, 40);
+      html += `<div class="prop-group"><label class="prop-label">Features</label>`;
+      (block.features || []).forEach((f, i) => {
+        html += `<div class="flex gap-1 mb-2">
+          <input class="prop-input text-xs" data-pricing-idx="${i}" value="${escapeHtml(f)}" oninput="updatePricingFeature(this)">
+          <button class="dnd-block-action delete flex-shrink-0" onclick="removePricingFeature(${i})"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+        </div>`;
+      });
+      html += `<button class="text-xs text-primary-600 hover:text-primary-700 font-medium mt-1" onclick="addPricingFeature()">+ Add Feature</button></div>`;
+      break;
+
+    case 'logo-row':
+      html += `<div class="prop-group"><label class="prop-label">Title</label><input class="prop-input" data-prop="title" value="${escapeHtml(p.title||'')}" oninput="updateBlockProp(this)"></div>`;
+      html += colorProp('Title Color', 'titleColor', p.titleColor || '#9ca3af');
+      html += colorProp('Background', 'bgColor', p.bgColor || '#f9fafb');
+      html += rangeProp('Logo Height', 'logoHeight', p.logoHeight || 32, 16, 64);
+      html += rangeProp('Padding', 'padding', p.padding || 24, 0, 40);
+      html += `<div class="prop-group"><label class="prop-label">Logos</label>`;
+      (block.logos || []).forEach((l, i) => {
+        html += `<div class="mb-2 p-2 bg-gray-50 rounded">
+          <input class="prop-input text-xs mb-1" data-logo-idx="${i}" data-logo-field="src" value="${escapeHtml(l.src||'')}" placeholder="Image URL" oninput="updateLogo(this)">
+          <input class="prop-input text-xs" data-logo-idx="${i}" data-logo-field="alt" value="${escapeHtml(l.alt||'')}" placeholder="Alt text" oninput="updateLogo(this)">
+        </div>`;
+      });
+      html += `<button class="text-xs text-primary-600 hover:text-primary-700 font-medium mt-1" onclick="addLogo()">+ Add Logo</button></div>`;
+      break;
+
+    case 'coupon':
+      html += `<div class="prop-group"><label class="prop-label">Title</label><input class="prop-input" data-prop="title" value="${escapeHtml(p.title||'')}" oninput="updateBlockProp(this)"></div>`;
+      html += colorProp('Title Color', 'titleColor', p.titleColor || '#92400e');
+      html += rangeProp('Title Size', 'titleSize', p.titleSize || 22, 14, 36);
+      html += `<div class="prop-group"><label class="prop-label">Description</label><input class="prop-input" data-prop="description" value="${escapeHtml(p.description||'')}" oninput="updateBlockProp(this)"></div>`;
+      html += colorProp('Background', 'bgColor', p.bgColor || '#fef3c7');
+      html += colorProp('Border Color', 'borderColor', p.borderColor || '#f59e0b');
+      html += colorProp('Text Color', 'textColor', p.textColor || '#92400e');
+      html += colorProp('Code Background', 'codeBg', p.codeBg || '#ffffff');
+      html += rangeProp('Code Size', 'codeSize', p.codeSize || 28, 16, 40);
+      html += rangeProp('Padding', 'padding', p.padding || 32, 8, 60);
+      break;
+
+    case 'alert':
+      html += selectProp('Style', 'style', p.style || 'info', ['info', 'success', 'warning', 'error']);
+      html += rangeProp('Font Size', 'fontSize', p.fontSize || 14, 11, 20);
+      html += rangeProp('Padding', 'padding', p.padding || 16, 0, 40);
+      html += rangeProp('Border Radius', 'borderRadius', p.borderRadius || 8, 0, 16);
+      break;
+
+    case 'table':
+      html += colorProp('Header Background', 'headerBg', p.headerBg || '#f1f5f9');
+      html += colorProp('Header Text', 'headerColor', p.headerColor || '#334155');
+      html += colorProp('Border Color', 'borderColor', p.borderColor || '#e2e8f0');
+      html += rangeProp('Font Size', 'fontSize', p.fontSize || 13, 10, 18);
+      html += rangeProp('Padding', 'padding', p.padding || 16, 0, 40);
+      html += `<div class="prop-group"><label class="prop-label">Headers (comma-separated)</label>
+        <input class="prop-input text-xs" value="${escapeHtml((block.headers||[]).join(', '))}" oninput="updateTableHeaders(this)"></div>`;
+      html += `<div class="prop-group"><label class="prop-label">Rows (one per line, comma-separated)</label>
+        <textarea class="prop-textarea font-mono text-xs" oninput="updateTableRows(this)">${(block.rows||[]).map(r => (Array.isArray(r)?r:[]).join(', ')).join('\n')}</textarea></div>`;
+      break;
   }
 
   panel.innerHTML = html;
@@ -733,6 +1065,88 @@ function updateFeature(el) {
   const idx = parseInt(el.dataset.featIdx);
   const field = el.dataset.featField;
   block.features[idx][field] = el.value;
+  rerenderBlock(block.id);
+}
+
+// List item helpers
+function updateListItem(el) {
+  const block = editorBlocks.find(b => b.id === selectedBlockId);
+  if (!block || !block.items) return;
+  block.items[parseInt(el.dataset.listIdx)] = el.value;
+  rerenderBlock(block.id);
+}
+function addListItem() {
+  const block = editorBlocks.find(b => b.id === selectedBlockId);
+  if (!block) return;
+  if (!block.items) block.items = [];
+  block.items.push('New item');
+  renderPropsPanel(); rerenderBlock(block.id);
+}
+function removeListItem(idx) {
+  const block = editorBlocks.find(b => b.id === selectedBlockId);
+  if (!block || !block.items) return;
+  block.items.splice(idx, 1);
+  renderPropsPanel(); rerenderBlock(block.id);
+}
+
+// Three column helper
+function updateThreeColumnContent(el) {
+  const block = editorBlocks.find(b => b.id === selectedBlockId);
+  if (!block) return;
+  const col = el.dataset.col;
+  if (!block[col]) block[col] = {};
+  block[col].content = el.value;
+  rerenderBlock(block.id);
+}
+
+// Pricing feature helpers
+function updatePricingFeature(el) {
+  const block = editorBlocks.find(b => b.id === selectedBlockId);
+  if (!block || !block.features) return;
+  block.features[parseInt(el.dataset.pricingIdx)] = el.value;
+  rerenderBlock(block.id);
+}
+function addPricingFeature() {
+  const block = editorBlocks.find(b => b.id === selectedBlockId);
+  if (!block) return;
+  if (!block.features) block.features = [];
+  block.features.push('New feature');
+  renderPropsPanel(); rerenderBlock(block.id);
+}
+function removePricingFeature(idx) {
+  const block = editorBlocks.find(b => b.id === selectedBlockId);
+  if (!block || !block.features) return;
+  block.features.splice(idx, 1);
+  renderPropsPanel(); rerenderBlock(block.id);
+}
+
+// Logo helpers
+function updateLogo(el) {
+  const block = editorBlocks.find(b => b.id === selectedBlockId);
+  if (!block || !block.logos) return;
+  const idx = parseInt(el.dataset.logoIdx);
+  block.logos[idx][el.dataset.logoField] = el.value;
+  rerenderBlock(block.id);
+}
+function addLogo() {
+  const block = editorBlocks.find(b => b.id === selectedBlockId);
+  if (!block) return;
+  if (!block.logos) block.logos = [];
+  block.logos.push({ src: '', alt: 'Logo' });
+  renderPropsPanel(); rerenderBlock(block.id);
+}
+
+// Table helpers
+function updateTableHeaders(el) {
+  const block = editorBlocks.find(b => b.id === selectedBlockId);
+  if (!block) return;
+  block.headers = el.value.split(',').map(s => s.trim());
+  rerenderBlock(block.id);
+}
+function updateTableRows(el) {
+  const block = editorBlocks.find(b => b.id === selectedBlockId);
+  if (!block) return;
+  block.rows = el.value.split('\n').map(line => line.split(',').map(s => s.trim()));
   rerenderBlock(block.id);
 }
 
