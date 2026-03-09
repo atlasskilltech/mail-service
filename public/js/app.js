@@ -72,6 +72,25 @@ function showPage(page) {
 
   document.getElementById('page-title').textContent = pageTitles[page] || page;
 
+  // Full-width mode for template editor
+  const sidebar = document.getElementById('sidebar');
+  const mainContent = document.querySelector('main');
+  if (page === 'template-editor') {
+    document.body.classList.add('fullwidth-mode');
+    sidebar.classList.add('sidebar-hidden');
+    sidebar.classList.remove('open');
+    mainContent.classList.remove('md:ml-64');
+    mainContent.classList.add('ml-0');
+    document.getElementById('sidebar-overlay').classList.remove('active');
+  } else {
+    document.body.classList.remove('fullwidth-mode');
+    sidebar.classList.remove('sidebar-hidden');
+    sidebar.classList.remove('open');
+    mainContent.classList.add('md:ml-64');
+    mainContent.classList.remove('ml-0');
+    document.getElementById('sidebar-overlay').classList.remove('active');
+  }
+
   // Load data for specific pages
   if (page === 'dashboard') loadDashboard();
   if (page === 'templates') loadTemplates();
