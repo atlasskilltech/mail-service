@@ -183,31 +183,53 @@ class Campaign {
   }
 
   /**
-   * Recover stale-queued recipients and auto-finalize campaigns.
-   * Recipients stuck in 'queued' for more than 5 minutes are marked 'failed'.
-   * If no pending/queued remain, the campaign is marked 'completed'.
+   * Recover stale-queued recipients by syncing with email_logs status.
+   * If the email was already sent (per email_logs) but campaign_recipients is still 'queued',
+   * update it to 'sent'. If email_logs shows 'failed', mark recipient as 'failed'.
+   * Then auto-finalize the campaign if all recipients are processed.
    */
   static async recoverStaleCampaign(campaignId) {
-    // Mark recipients that have been 'queued' for over 5 minutes as 'failed'
+    // Sync 'queued' recipients whose email_logs already show 'sent' or 'delivered'
     await db.execute(
-      `UPDATE campaign_recipients SET status = 'failed', error_message = 'Delivery timeout - stuck in queue'
-       WHERE campaign_id = ? AND status = 'queued' AND created_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)
-       AND (sent_at IS NULL)`,
+      `UPDATE campaign_recipients cr
+       INNER JOIN email_logs el ON cr.email_log_id = el.id
+       SET cr.status = 'sent', cr.sent_at = COALESCE(cr.sent_at, NOW())
+       WHERE cr.campaign_id = ? AND cr.status = 'queued' AND el.status IN ('sent', 'delivered')`,
+      [campaignId]
+    );
+
+    // Sync 'queued' recipients whose email_logs show 'failed'
+    await db.execute(
+      `UPDATE campaign_recipients cr
+       INNER JOIN email_logs el ON cr.email_log_id = el.id
+       SET cr.status = 'failed', cr.error_message = COALESCE(el.error_message, 'Send failed')
+       WHERE cr.campaign_id = ? AND cr.status = 'queued' AND el.status = 'failed'`,
+      [campaignId]
+    );
+
+    // Mark truly orphaned queued recipients (no email_log or email_log still pending for >5 min)
+    await db.execute(
+      `UPDATE campaign_recipients cr
+       SET cr.status = 'failed', cr.error_message = 'Delivery timeout - stuck in queue'
+       WHERE cr.campaign_id = ? AND cr.status = 'queued'
+       AND cr.sent_at IS NULL
+       AND (cr.email_log_id IS NULL OR cr.email_log_id NOT IN (
+         SELECT id FROM email_logs WHERE status IN ('pending', 'queued')
+       ))
+       AND cr.created_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)`,
       [campaignId]
     );
 
     // Check if campaign is still 'sending' but all recipients are processed
     const [campaign] = await db.execute('SELECT status FROM campaigns WHERE id = ?', [campaignId]);
     if (campaign[0] && campaign[0].status === 'sending') {
+      await Campaign.updateCounts(campaignId);
       const [remaining] = await db.execute(
         "SELECT COUNT(*) as cnt FROM campaign_recipients WHERE campaign_id = ? AND status IN ('pending', 'queued')",
         [campaignId]
       );
       if (remaining[0].cnt === 0) {
-        await Campaign.updateCounts(campaignId);
         await Campaign.updateStatus(campaignId, 'completed');
-      } else {
-        await Campaign.updateCounts(campaignId);
       }
     }
   }
