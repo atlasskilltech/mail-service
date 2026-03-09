@@ -287,6 +287,89 @@ async function submitCsvImport(e) {
   }
 }
 
+// ---- Upload to specific list ----
+function openListImportModal(listId, listName) {
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+  modal.id = 'list-import-modal';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = `<div class="bg-white rounded-2xl w-full max-w-lg">
+    <div class="p-6 border-b border-gray-200">
+      <h3 class="text-lg font-semibold text-gray-900">Upload Contacts</h3>
+      <p class="text-sm text-gray-500 mt-1">Import contacts to <strong>${escapeHtml(listName)}</strong></p>
+    </div>
+    <form onsubmit="submitListCsvImport(event,${listId})" class="p-6 space-y-4">
+      <div class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-primary-400 transition-colors">
+        <svg class="w-10 h-10 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+        <input type="file" id="list-csv-file" accept=".csv" required class="text-sm">
+        <p class="text-xs text-gray-400 mt-3">CSV must have header row. Required: <strong>email</strong></p>
+        <p class="text-xs text-gray-400">Optional: first_name, last_name, phone, city, country, company, tags</p>
+      </div>
+      <div class="bg-blue-50 rounded-lg p-3 flex items-start gap-2">
+        <svg class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <div class="text-xs text-blue-700">
+          <p class="font-medium">Need a template?</p>
+          <p class="mt-0.5">Download the <a href="#" onclick="event.preventDefault();downloadSampleCsv()" class="underline font-medium">sample CSV file</a> to see the correct format.</p>
+        </div>
+      </div>
+      <div class="flex gap-3 justify-end pt-2">
+        <button type="button" onclick="this.closest('.fixed').remove()" class="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">Cancel</button>
+        <button type="submit" id="list-import-btn" class="px-4 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700">Import</button>
+      </div>
+    </form>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+async function submitListCsvImport(e, listId) {
+  e.preventDefault();
+  const fileInput = document.getElementById('list-csv-file');
+  const btn = document.getElementById('list-import-btn');
+
+  if (!fileInput.files[0]) return showToast('Select a CSV file', 'error');
+
+  btn.disabled = true;
+  btn.textContent = 'Importing...';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    formData.append('listId', listId);
+
+    const headers = {};
+    const apiKey = getApiKey();
+    if (apiKey) headers['X-API-Key'] = apiKey;
+
+    const res = await fetch('/contacts/import/csv', { method: 'POST', headers, body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Import failed');
+
+    showToast(`Imported ${data.imported} contacts (${data.skipped} skipped)`);
+    document.getElementById('list-import-modal').remove();
+    loadContacts();
+    loadContactLists();
+  } catch (err) {
+    showToast(err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Import';
+  }
+}
+
+function downloadSampleCsv() {
+  const csv = `email,first_name,last_name,phone,city,country,company,tags
+john.doe@example.com,John,Doe,+1234567890,New York,USA,Acme Corp,lead;newsletter
+jane.smith@example.com,Jane,Smith,+0987654321,London,UK,Tech Inc,customer;vip
+bob.wilson@example.com,Bob,Wilson,,Mumbai,India,StartupXYZ,prospect`;
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'sample_contacts.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Sample CSV downloaded');
+}
+
 // =============================================
 // Contact Lists
 // =============================================
@@ -324,9 +407,19 @@ function renderLists(lists) {
         </div>
       </div>
       <p class="text-sm text-gray-500 mb-3">${escapeHtml(l.description || 'No description')}</p>
-      <div class="flex items-center gap-4 text-xs text-gray-400">
+      <div class="flex items-center gap-4 text-xs text-gray-400 mb-3">
         <span class="flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg> ${l.member_count} contacts</span>
         <span>${l.is_active ? '<span class="text-green-500">Active</span>' : '<span class="text-gray-400">Inactive</span>'}</span>
+      </div>
+      <div class="flex gap-2 pt-3 border-t border-gray-100">
+        <button onclick="openListImportModal(${l.id},'${escapeHtml(l.name)}')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-primary-700 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          Upload Contacts
+        </button>
+        <button onclick="downloadSampleCsv()" class="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors" title="Download sample CSV">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Sample CSV
+        </button>
       </div>
     </div>
   `).join('');
