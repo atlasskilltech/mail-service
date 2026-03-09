@@ -49,7 +49,13 @@ const pageTitles = {
   'api-docs': 'API Documentation',
   'template-editor': 'Template Editor',
   'contacts': 'Contacts',
-  'contact-lists': 'Lists & Segments'
+  'contact-lists': 'Lists & Segments',
+  'campaigns': 'Campaigns',
+  'campaign-detail': 'Campaign Detail',
+  'campaign-create': 'Create Campaign',
+  'automations': 'Automations',
+  'automation-detail': 'Automation Detail',
+  'automation-create': 'Create Automation'
 };
 
 function showPage(page) {
@@ -76,6 +82,9 @@ function showPage(page) {
   if (page === 'template-editor') initTemplateEditor();
   if (page === 'contacts') loadContacts();
   if (page === 'contact-lists') loadContactLists();
+  if (page === 'campaigns') loadCampaigns();
+  if (page === 'automations') loadAutomations();
+  if (page === 'campaign-create') initCampaignCreateForm();
 }
 
 // Status badge helper
