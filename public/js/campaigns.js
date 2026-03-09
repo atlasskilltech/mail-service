@@ -79,22 +79,22 @@ function showCreateCampaignForm() {
 }
 
 async function initCampaignCreateForm() {
-  // Load templates
+  // Load templates - API returns array directly
   try {
-    const data = await api('GET', '/templates');
+    const templates = await api('GET', '/templates');
     const sel = document.getElementById('camp-template');
     sel.innerHTML = '<option value="">Select a template...</option>';
-    (data.templates || []).forEach(t => {
+    (Array.isArray(templates) ? templates : (templates.templates || [])).forEach(t => {
       sel.innerHTML += `<option value="${t.id}">${escapeHtml(t.name)} — ${escapeHtml(t.subject)}</option>`;
     });
   } catch (_) {}
 
-  // Load lists
+  // Load lists - API returns array directly
   try {
-    const data = await api('GET', '/lists');
+    const lists = await api('GET', '/lists');
     const sel = document.getElementById('camp-list');
     sel.innerHTML = '<option value="">Select a list...</option>';
-    (data.lists || []).forEach(l => {
+    (Array.isArray(lists) ? lists : (lists.lists || [])).forEach(l => {
       sel.innerHTML += `<option value="${l.id}">${escapeHtml(l.name)}</option>`;
     });
   } catch (_) {}
