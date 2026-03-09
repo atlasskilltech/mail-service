@@ -71,12 +71,30 @@
     .prop-color-row { display:flex; align-items:center; gap:8px; }
     .prop-color { width:32px; height:32px; border:2px solid #d1d5db; border-radius:6px; cursor:pointer; padding:0; }
     .prop-range { width:100%; accent-color:#3b82f6; }
+
+    /* Mobile sidebar */
+    @media (max-width: 767px) {
+      .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:40; }
+      .sidebar-overlay.active { display:block; }
+      .mobile-sidebar { transform:translateX(-100%); transition:transform .3s ease; z-index:50; }
+      .mobile-sidebar.open { transform:translateX(0); }
+      .dnd-editor-wrap { flex-direction:column; height:auto; min-height:calc(100vh - 130px); }
+      .dnd-palette { width:100%; min-width:100%; max-height:none; border-right:0; border-bottom:1px solid #e5e7eb; }
+      .dnd-palette .p-3.space-y-2 { display:flex; flex-wrap:wrap; gap:4px; }
+      .dnd-palette .p-3.space-y-2 > * { flex:none; }
+      .dnd-properties { width:100%; min-width:100%; border-left:0; border-top:1px solid #e5e7eb; }
+      .dnd-toolbar { flex-wrap:wrap; gap:8px; }
+      .dnd-canvas-scroll { padding:8px; }
+      .dnd-canvas { width:100% !important; max-width:100%; }
+    }
   </style>
 </head>
 <body class="h-full">
   <div class="flex h-full">
+    <!-- Mobile Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
     <!-- Sidebar -->
-    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full">
+    <aside id="sidebar" class="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full mobile-sidebar md:transform-none">
       <div class="p-6 border-b border-gray-200">
         <h1 class="text-xl font-bold text-gray-900 flex items-center gap-2">
           <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
@@ -160,19 +178,24 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 ml-64 overflow-y-auto">
+    <main class="flex-1 md:ml-64 overflow-y-auto">
       <!-- Top Bar -->
-      <header class="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between sticky top-0 z-10">
-        <h2 id="page-title" class="text-lg font-semibold text-gray-900">Dashboard</h2>
+      <header class="bg-white border-b border-gray-200 px-4 md:px-8 py-4 flex items-center justify-between sticky top-0 z-10 gap-3">
+        <div class="flex items-center gap-3">
+          <button id="sidebar-toggle" onclick="toggleSidebar()" class="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+          <h2 id="page-title" class="text-lg font-semibold text-gray-900 truncate">Dashboard</h2>
+        </div>
         <div class="flex items-center gap-4">
-          <div class="flex items-center gap-2">
+          <div class="hidden sm:flex items-center gap-2">
             <label class="text-sm text-gray-600">API Key:</label>
-            <input type="text" id="api-key-input" placeholder="Enter your API key" class="text-sm border border-gray-300 rounded-lg px-3 py-1.5 w-64 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+            <input type="text" id="api-key-input" placeholder="Enter your API key" class="text-sm border border-gray-300 rounded-lg px-3 py-1.5 w-40 lg:w-64 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
           </div>
         </div>
       </header>
 
-      <div class="p-8">
+      <div class="p-4 md:p-8">
         <!-- Dashboard Page -->
         <div id="page-dashboard" class="page fade-in">
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -314,7 +337,7 @@
             <div class="p-6 border-b border-gray-200 flex items-center justify-between flex-wrap gap-4">
               <h3 class="text-base font-semibold text-gray-900">Email Logs</h3>
               <div class="flex items-center gap-3">
-                <input type="email" id="logs-search" placeholder="Search by recipient..." class="text-sm border border-gray-300 rounded-lg px-4 py-2 w-64 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+                <input type="email" id="logs-search" placeholder="Search by recipient..." class="text-sm border border-gray-300 rounded-lg px-4 py-2 w-full sm:w-64 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
                 <select id="logs-status-filter" class="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
                   <option value="">All Statuses</option>
                   <option value="pending">Pending</option>
@@ -352,7 +375,7 @@
           <div class="flex items-center justify-between mb-6 flex-wrap gap-4">
             <h3 class="text-base font-semibold text-gray-900">Email Templates</h3>
             <div class="flex items-center gap-3">
-              <input type="text" id="tpl-search-input" placeholder="Search templates..." class="text-sm border border-gray-300 rounded-lg px-4 py-2 w-48 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+              <input type="text" id="tpl-search-input" placeholder="Search templates..." class="text-sm border border-gray-300 rounded-lg px-4 py-2 w-full sm:w-48 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
               <select id="tpl-filter-active" class="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
                 <option value="">All</option>
                 <option value="true">Active Only</option>
@@ -382,7 +405,7 @@
             <div class="p-6 border-b border-gray-200 flex items-center justify-between flex-wrap gap-4">
               <h3 class="text-base font-semibold text-gray-900">Bounce Records</h3>
               <div class="flex items-center gap-3">
-                <input type="email" id="bounce-search" placeholder="Search by email..." class="text-sm border border-gray-300 rounded-lg px-4 py-2 w-64 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+                <input type="email" id="bounce-search" placeholder="Search by email..." class="text-sm border border-gray-300 rounded-lg px-4 py-2 w-full sm:w-64 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
                 <button onclick="loadBounces()" class="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">Search</button>
               </div>
             </div>
@@ -502,7 +525,7 @@
           <!-- Toolbar -->
           <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
             <div class="flex items-center gap-2 flex-wrap">
-              <input type="text" id="contacts-search" placeholder="Search contacts..." class="text-sm border border-gray-300 rounded-lg px-3 py-2 w-64 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none" oninput="debounceContactSearch()">
+              <input type="text" id="contacts-search" placeholder="Search contacts..." class="text-sm border border-gray-300 rounded-lg px-3 py-2 w-full sm:w-64 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none" oninput="debounceContactSearch()">
               <select id="contacts-filter-status" onchange="loadContacts()" class="text-sm border border-gray-300 rounded-lg px-3 py-2 outline-none">
                 <option value="">All Status</option>
                 <option value="subscribed">Subscribed</option>
@@ -728,7 +751,7 @@
 
         <!-- Campaigns Page -->
         <div id="page-campaigns" class="page hidden fade-in">
-          <div class="flex items-center justify-between mb-6">
+          <div class="flex flex-wrap items-center justify-between mb-6 gap-3">
             <div>
               <h3 class="text-xl font-bold text-gray-900">Email Campaigns</h3>
               <p class="text-sm text-gray-500 mt-1">Create, schedule, and track marketing campaigns</p>
@@ -739,14 +762,14 @@
             </button>
           </div>
           <!-- Campaign Stats Row -->
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="campaign-stats-row">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="campaign-stats-row">
             <div class="bg-white rounded-xl border border-gray-200 p-4"><p class="text-xs text-gray-500">Total Campaigns</p><p id="camp-stat-total" class="text-2xl font-bold text-gray-900 mt-1">-</p></div>
             <div class="bg-white rounded-xl border border-gray-200 p-4"><p class="text-xs text-gray-500">Active / Sending</p><p id="camp-stat-active" class="text-2xl font-bold text-blue-600 mt-1">-</p></div>
             <div class="bg-white rounded-xl border border-gray-200 p-4"><p class="text-xs text-gray-500">Completed</p><p id="camp-stat-completed" class="text-2xl font-bold text-green-600 mt-1">-</p></div>
             <div class="bg-white rounded-xl border border-gray-200 p-4"><p class="text-xs text-gray-500">Draft</p><p id="camp-stat-draft" class="text-2xl font-bold text-gray-600 mt-1">-</p></div>
           </div>
           <!-- Filter bar -->
-          <div class="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex items-center gap-4">
+          <div class="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex flex-wrap items-center gap-3">
             <select id="campaign-filter-status" onchange="loadCampaigns()" class="text-sm border border-gray-300 rounded-lg px-3 py-2">
               <option value="">All Statuses</option>
               <option value="draft">Draft</option>
@@ -756,37 +779,39 @@
               <option value="paused">Paused</option>
               <option value="cancelled">Cancelled</option>
             </select>
-            <input type="text" id="campaign-filter-search" placeholder="Search campaigns..." onkeyup="loadCampaigns()" class="text-sm border border-gray-300 rounded-lg px-3 py-2 flex-1">
+            <input type="text" id="campaign-filter-search" placeholder="Search campaigns..." onkeyup="loadCampaigns()" class="text-sm border border-gray-300 rounded-lg px-3 py-2 flex-1 min-w-0">
           </div>
           <!-- Campaign List -->
           <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <table class="w-full">
-              <thead><tr class="bg-gray-50 border-b border-gray-200">
-                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Campaign</th>
-                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Sent</th>
-                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Open Rate</th>
-                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Click Rate</th>
-                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Created</th>
-                <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
-              </tr></thead>
-              <tbody id="campaign-table-body"><tr><td colspan="7" class="px-6 py-12 text-center text-sm text-gray-500">Loading...</td></tr></tbody>
-            </table>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead><tr class="bg-gray-50 border-b border-gray-200">
+                  <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Campaign</th>
+                  <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                  <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Sent</th>
+                  <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Open Rate</th>
+                  <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Click Rate</th>
+                  <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Created</th>
+                  <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                </tr></thead>
+                <tbody id="campaign-table-body"><tr><td colspan="7" class="px-6 py-12 text-center text-sm text-gray-500">Loading...</td></tr></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
         <!-- Campaign Detail Page -->
         <div id="page-campaign-detail" class="page hidden fade-in">
-          <div class="flex items-center gap-3 mb-6">
+          <div class="flex flex-wrap items-center gap-3 mb-6">
             <button onclick="showPage('campaigns')" class="text-gray-500 hover:text-gray-700"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
-            <div>
-              <h3 id="campaign-detail-name" class="text-xl font-bold text-gray-900">Campaign Detail</h3>
-              <p id="campaign-detail-subject" class="text-sm text-gray-500 mt-0.5"></p>
+            <div class="min-w-0 flex-1">
+              <h3 id="campaign-detail-name" class="text-xl font-bold text-gray-900 truncate">Campaign Detail</h3>
+              <p id="campaign-detail-subject" class="text-sm text-gray-500 mt-0.5 truncate"></p>
             </div>
-            <div class="ml-auto flex items-center gap-2" id="campaign-detail-actions"></div>
+            <div class="flex items-center gap-2 flex-wrap" id="campaign-detail-actions"></div>
           </div>
           <!-- Analytics Cards -->
-          <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6" id="campaign-analytics-cards"></div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6" id="campaign-analytics-cards"></div>
           <!-- Tabs -->
           <div class="border-b border-gray-200 mb-6">
             <nav class="flex gap-6">
@@ -815,7 +840,7 @@
                 <label class="block text-sm font-medium text-gray-700 mb-1">Subject Line *</label>
                 <input type="text" id="camp-subject" required placeholder="e.g. Admissions Open for MBA 2026" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
               </div>
-              <div class="grid grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">From Email (optional)</label>
                   <input type="email" id="camp-from" placeholder="sender@yourdomain.com" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
@@ -862,7 +887,7 @@
 
         <!-- Automations Page -->
         <div id="page-automations" class="page hidden fade-in">
-          <div class="flex items-center justify-between mb-6">
+          <div class="flex flex-wrap items-center justify-between mb-6 gap-3">
             <div>
               <h3 class="text-xl font-bold text-gray-900">Automations</h3>
               <p class="text-sm text-gray-500 mt-1">Create automated email workflows triggered by events</p>
@@ -874,17 +899,19 @@
           </div>
           <!-- Automation List -->
           <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <table class="w-full">
-              <thead><tr class="bg-gray-50 border-b border-gray-200">
-                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Name</th>
-                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Trigger</th>
-                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Entered</th>
-                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Completed</th>
-                <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
-              </tr></thead>
-              <tbody id="automation-table-body"><tr><td colspan="6" class="px-6 py-12 text-center text-sm text-gray-500">Loading...</td></tr></tbody>
-            </table>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead><tr class="bg-gray-50 border-b border-gray-200">
+                  <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Name</th>
+                  <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Trigger</th>
+                  <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                  <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Entered</th>
+                  <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Completed</th>
+                  <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                </tr></thead>
+                <tbody id="automation-table-body"><tr><td colspan="6" class="px-6 py-12 text-center text-sm text-gray-500">Loading...</td></tr></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -899,7 +926,7 @@
             <div class="ml-auto flex items-center gap-2" id="automation-detail-actions"></div>
           </div>
           <!-- Stats -->
-          <div class="grid grid-cols-3 gap-4 mb-6">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <div class="bg-white rounded-xl border border-gray-200 p-4"><p class="text-xs text-gray-500">Trigger</p><p id="auto-stat-trigger" class="text-lg font-semibold text-gray-900 mt-1">-</p></div>
             <div class="bg-white rounded-xl border border-gray-200 p-4"><p class="text-xs text-gray-500">Total Entered</p><p id="auto-stat-entered" class="text-lg font-semibold text-blue-600 mt-1">-</p></div>
             <div class="bg-white rounded-xl border border-gray-200 p-4"><p class="text-xs text-gray-500">Total Completed</p><p id="auto-stat-completed" class="text-lg font-semibold text-green-600 mt-1">-</p></div>
@@ -915,7 +942,7 @@
           <!-- Add Step Form (hidden) -->
           <div id="add-step-form" class="bg-white rounded-xl border border-gray-200 p-6 mb-6 hidden">
             <h4 class="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">Add Step</h4>
-            <div class="grid grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Step Order</label>
                 <input type="number" id="step-order" min="1" value="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
@@ -1712,6 +1739,22 @@
   <!-- Toast Container -->
   <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
 
+  <script>
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('sidebar-overlay').classList.toggle('active');
+    }
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebar-overlay').classList.remove('active');
+    }
+    // Close sidebar when a nav link is clicked on mobile
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('.sidebar-link') && window.innerWidth < 768) {
+        closeSidebar();
+      }
+    });
+  </script>
   <script src="/js/app.js"></script>
   <script src="/js/template-editor.js"></script>
   <script src="/js/contacts.js"></script>
