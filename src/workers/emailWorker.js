@@ -3,6 +3,7 @@ const config = require('../config');
 const queueService = require('../services/queueService');
 const sesService = require('../services/sesService');
 const EmailLog = require('../models/emailLog');
+const Campaign = require('../models/campaign');
 const logger = require('../utils/logger');
 
 class EmailWorker {
@@ -70,6 +71,37 @@ class EmailWorker {
 
       if (logId) {
         await EmailLog.updateStatus(logId, 'sent', { messageId });
+
+        // Update campaign recipient status from 'queued' to 'sent'
+        try {
+          const db = require('../config/database');
+          const [rows] = await db.execute(
+            'SELECT id, campaign_id FROM campaign_recipients WHERE email_log_id = ? AND status = ?',
+            [logId, 'queued']
+          );
+          if (rows.length > 0) {
+            const campaignId = rows[0].campaign_id;
+            await Campaign.updateRecipientStatus(rows[0].id, 'sent');
+            await Campaign.updateCounts(campaignId);
+
+            // Check if all recipients are now processed (no more pending or queued)
+            const [pending] = await db.execute(
+              "SELECT COUNT(*) as cnt FROM campaign_recipients WHERE campaign_id = ? AND status IN ('pending', 'queued')",
+              [campaignId]
+            );
+            if (pending[0].cnt === 0) {
+              const [campRow] = await db.execute('SELECT status FROM campaigns WHERE id = ?', [campaignId]);
+              if (campRow[0] && campRow[0].status === 'sending') {
+                await Campaign.updateStatus(campaignId, 'completed');
+                logger.info(`Campaign ${campaignId} completed - all recipients processed`);
+              }
+            }
+
+            logger.info(`Campaign recipient updated to sent: logId=${logId}, campaignId=${campaignId}`);
+          }
+        } catch (crError) {
+          logger.error(`Failed to update campaign recipient for logId=${logId}:`, crError.message);
+        }
       }
 
       await queueService.deleteMessage(message.ReceiptHandle);
