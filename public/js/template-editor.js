@@ -137,6 +137,14 @@ const blockDefaults = {
     col2: { content: '<p style="margin:0;color:#51545e;font-size:14px;text-align:center;">Column 2</p>' },
     col3: { content: '<p style="margin:0;color:#51545e;font-size:14px;text-align:center;">Column 3</p>' }
   }),
+  'four-columns': () => ({
+    type: 'four-columns',
+    props: { padding: '16', gap: '10', bgColor: 'transparent' },
+    col1: { content: '<p style="margin:0;color:#51545e;font-size:13px;text-align:center;">Col 1</p>' },
+    col2: { content: '<p style="margin:0;color:#51545e;font-size:13px;text-align:center;">Col 2</p>' },
+    col3: { content: '<p style="margin:0;color:#51545e;font-size:13px;text-align:center;">Col 3</p>' },
+    col4: { content: '<p style="margin:0;color:#51545e;font-size:13px;text-align:center;">Col 4</p>' }
+  }),
   'pricing': () => ({
     type: 'pricing',
     content: 'Pro Plan',
@@ -251,8 +259,8 @@ function setupPaletteDrag() {
 }
 
 function switchEditorTab(tab) {
-  document.querySelectorAll('.dnd-palette-tab').forEach(t => t.classList.remove('active'));
-  ['elements', 'layouts', 'sections'].forEach(id => {
+  document.querySelectorAll('.dnd-palette-vtab').forEach(t => t.classList.remove('active'));
+  ['layouts', 'designs', 'widgets', 'style', 'saved'].forEach(id => {
     const el = document.getElementById('pal-content-' + id);
     if (el) el.classList.add('hidden');
   });
@@ -260,6 +268,25 @@ function switchEditorTab(tab) {
   const contentEl = document.getElementById('pal-content-' + tab);
   if (tabEl) tabEl.classList.add('active');
   if (contentEl) contentEl.classList.remove('hidden');
+}
+
+function loadPresetDesign(type) {
+  if (editorBlocks.length > 0 && !confirm('This will replace your current design. Continue?')) return;
+  saveState();
+  editorBlocks = [];
+  const presets = {
+    newsletter: ['header', 'text', 'image', 'text', 'button', 'divider', 'footer'],
+    promo: ['hero-section', 'text', 'feature-grid', 'cta-banner', 'footer'],
+    welcome: ['hero-section', 'text', 'columns', 'button', 'social', 'footer'],
+    announcement: ['header', 'image-text', 'text', 'button', 'divider', 'social', 'footer']
+  };
+  (presets[type] || presets.newsletter).forEach(blockType => {
+    const factory = blockDefaults[blockType];
+    if (factory) { const block = factory(); block.id = genBlockId(); editorBlocks.push(block); }
+  });
+  selectedBlockId = null;
+  renderCanvas();
+  renderPropsPanel();
 }
 
 function handlePaletteDragStart(e) {
@@ -596,6 +623,15 @@ function renderBlockHtml(block) {
           <td width="32%" valign="top" style="padding-left:${(p.gap||12)/2}px;">${block.col3?.content||''}</td>
         </tr></table></div>`;
 
+    case 'four-columns':
+      return `<div style="padding:${p.padding||16}px;background:${p.bgColor||'transparent'};">
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
+          <td width="25%" valign="top" style="padding-right:${(p.gap||10)/2}px;">${block.col1?.content||''}</td>
+          <td width="25%" valign="top" style="padding:0 ${(p.gap||10)/2}px;">${block.col2?.content||''}</td>
+          <td width="25%" valign="top" style="padding:0 ${(p.gap||10)/2}px;">${block.col3?.content||''}</td>
+          <td width="25%" valign="top" style="padding-left:${(p.gap||10)/2}px;">${block.col4?.content||''}</td>
+        </tr></table></div>`;
+
     case 'pricing': {
       const feats = block.features || [];
       const featHtml = feats.map(f => `<tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:14px;color:#374151;font-family:Helvetica,Arial,sans-serif;">&#10003;&nbsp; ${escapeHtml(f)}</td></tr>`).join('');
@@ -897,6 +933,16 @@ function renderPropsPanel() {
       html += colorProp('Background', 'bgColor', p.bgColor || 'transparent');
       break;
 
+    case 'four-columns':
+      html += `<div class="prop-group"><label class="prop-label">Column 1 (HTML)</label><textarea class="prop-textarea font-mono text-xs" data-col="col1" oninput="updateFourColumnContent(this)">${escapeHtml(block.col1?.content||'')}</textarea></div>`;
+      html += `<div class="prop-group"><label class="prop-label">Column 2 (HTML)</label><textarea class="prop-textarea font-mono text-xs" data-col="col2" oninput="updateFourColumnContent(this)">${escapeHtml(block.col2?.content||'')}</textarea></div>`;
+      html += `<div class="prop-group"><label class="prop-label">Column 3 (HTML)</label><textarea class="prop-textarea font-mono text-xs" data-col="col3" oninput="updateFourColumnContent(this)">${escapeHtml(block.col3?.content||'')}</textarea></div>`;
+      html += `<div class="prop-group"><label class="prop-label">Column 4 (HTML)</label><textarea class="prop-textarea font-mono text-xs" data-col="col4" oninput="updateFourColumnContent(this)">${escapeHtml(block.col4?.content||'')}</textarea></div>`;
+      html += rangeProp('Padding', 'padding', p.padding || 16, 0, 40);
+      html += rangeProp('Gap', 'gap', p.gap || 10, 0, 30);
+      html += colorProp('Background', 'bgColor', p.bgColor || 'transparent');
+      break;
+
     case 'pricing':
       html += colorProp('Accent Color', 'accentColor', p.accentColor || '#3b82f6');
       html += colorProp('Border', 'borderColor', p.borderColor || '#e5e7eb');
@@ -1103,6 +1149,15 @@ function removeListItem(idx) {
 
 // Three column helper
 function updateThreeColumnContent(el) {
+  const block = editorBlocks.find(b => b.id === selectedBlockId);
+  if (!block) return;
+  const col = el.dataset.col;
+  if (!block[col]) block[col] = {};
+  block[col].content = el.value;
+  rerenderBlock(block.id);
+}
+
+function updateFourColumnContent(el) {
   const block = editorBlocks.find(b => b.id === selectedBlockId);
   if (!block) return;
   const col = el.dataset.col;

@@ -324,41 +324,43 @@ async function loadTemplates() {
     select.value = currentVal;
 
     if (!templates.length) {
-      document.getElementById('templates-grid').innerHTML = '<p class="text-sm text-gray-500 col-span-full text-center py-12">No templates found</p>';
+      document.getElementById('templates-grid').innerHTML = `
+        <div class="col-span-full text-center py-16">
+          <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          <p class="text-gray-500 font-medium">No templates found</p>
+          <p class="text-sm text-gray-400 mt-1">Create your first email template to get started</p>
+        </div>`;
       return;
     }
 
     document.getElementById('templates-grid').innerHTML = templates.map(t => {
-      const vars = t.variables ? (typeof t.variables === 'string' ? JSON.parse(t.variables) : t.variables) : [];
+      const nameEsc = escapeHtml(t.name).replace(/'/g, "\\'");
+      const dateStr = formatDate(t.updated_at || t.created_at);
+      const hasHtml = t.html_body || t.body;
+      const previewId = 'tpl-preview-' + t.id;
       return `
-      <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow ${!t.is_active ? 'opacity-60' : ''}">
-        <div class="flex items-start justify-between mb-3">
-          <div class="flex-1 min-w-0">
-            <h4 class="font-semibold text-gray-900 text-sm">${escapeHtml(t.name)}</h4>
-            ${t.description ? `<p class="text-xs text-gray-500 mt-0.5 truncate">${escapeHtml(t.description)}</p>` : ''}
+      <div class="tpl-card ${!t.is_active ? 'opacity-60' : ''}" data-tpl-id="${t.id}">
+        <div class="tpl-card-preview" id="${previewId}">
+          ${hasHtml
+            ? `<iframe srcdoc="${escapeHtml(t.html_body || t.body)}" sandbox="allow-same-origin" loading="lazy" onload="scaleTplPreview(this)"></iframe>`
+            : `<div class="tpl-fallback">
+                <div class="text-center p-4">
+                  <svg class="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                  <p class="text-xs text-gray-400">${escapeHtml(t.subject || 'No preview')}</p>
+                </div>
+              </div>`
+          }
+          ${t.version && t.version > 1 ? `<div class="tpl-card-badge">v${t.version}</div>` : ''}
+          <div class="tpl-card-actions">
+            <button onclick="event.stopPropagation();previewTemplate('${nameEsc}')" class="tpl-card-action bg-white text-gray-800 hover:bg-gray-100">Preview</button>
+            <button onclick="event.stopPropagation();editTemplate(${t.id}, '${nameEsc}')" class="tpl-card-action bg-primary-600 text-white hover:bg-primary-700">Edit</button>
+            <button onclick="event.stopPropagation();openCloneModal(${t.id}, '${nameEsc}')" class="tpl-card-action bg-teal-600 text-white hover:bg-teal-700">Clone</button>
+            <button onclick="event.stopPropagation();deleteTemplate(${t.id}, '${nameEsc}')" class="tpl-card-action bg-red-600 text-white hover:bg-red-700">Delete</button>
           </div>
-          <button onclick="toggleTemplateActive(${t.id})" class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${t.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}" title="Click to toggle">
-            ${t.is_active ? 'Active' : 'Inactive'}
-          </button>
         </div>
-        <p class="text-sm text-gray-600 mb-3 truncate">${escapeHtml(t.subject)}</p>
-        <div class="flex flex-wrap gap-1 mb-4">
-          ${vars.map(v =>
-            `<span class="text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded font-mono">{{${escapeHtml(v)}}}</span>`
-          ).join('')}
-          ${vars.length === 0 ? '<span class="text-xs text-gray-400">No variables</span>' : ''}
-        </div>
-        <div class="flex items-center gap-2 pt-3 border-t border-gray-100 flex-wrap">
-          <button onclick="previewTemplate('${escapeHtml(t.name)}')" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors">Preview</button>
-          <span class="text-gray-300">|</span>
-          <button onclick="editTemplate(${t.id}, '${escapeHtml(t.name)}')" class="text-xs text-primary-600 hover:text-primary-800 font-medium transition-colors">Edit</button>
-          <span class="text-gray-300">|</span>
-          <button onclick="openCloneModal(${t.id}, '${escapeHtml(t.name)}')" class="text-xs text-teal-600 hover:text-teal-800 font-medium transition-colors">Clone</button>
-          <span class="text-gray-300">|</span>
-          <button onclick="viewTemplateStats('${escapeHtml(t.name)}')" class="text-xs text-amber-600 hover:text-amber-800 font-medium transition-colors">Stats</button>
-          <span class="text-gray-300">|</span>
-          <button onclick="deleteTemplate(${t.id}, '${escapeHtml(t.name)}')" class="text-xs text-red-600 hover:text-red-800 font-medium transition-colors">Delete</button>
-          <span class="text-gray-300 ml-auto text-xs">${t.version ? `v${t.version}` : ''}</span>
+        <div class="tpl-card-info">
+          <h4>${escapeHtml(t.name)} ${t.description ? ' - ' + escapeHtml(t.description) : ''}</h4>
+          <p style="font-size:10px;color:#9ca3af;margin-top:3px;">${dateStr}</p>
         </div>
       </div>`;
     }).join('');
@@ -367,9 +369,40 @@ async function loadTemplates() {
   }
 }
 
+function scaleTplPreview(iframe) {
+  const container = iframe.parentElement;
+  if (!container) return;
+  const cw = container.offsetWidth;
+  const scale = cw / 600;
+  iframe.style.transform = `scale(${scale})`;
+  iframe.style.width = '600px';
+  iframe.style.height = (container.offsetHeight / scale) + 'px';
+}
+
+function switchTemplateTab(tab) {
+  document.querySelectorAll('.tpl-tab').forEach(t => t.classList.remove('active'));
+  ['your', 'gallery', 'blocks', 'brand'].forEach(id => {
+    const el = document.getElementById('tpl-content-' + id);
+    if (el) el.classList.add('hidden');
+  });
+  const tabEl = document.getElementById('tpl-tab-' + tab);
+  const contentEl = document.getElementById('tpl-content-' + tab);
+  if (tabEl) tabEl.classList.add('active');
+  if (contentEl) contentEl.classList.remove('hidden');
+}
+
+function toggleTemplateMenu(e) {
+  e.stopPropagation();
+  const menu = document.getElementById('tpl-more-menu');
+  menu.classList.toggle('hidden');
+  const close = (ev) => { if (!menu.contains(ev.target)) { menu.classList.add('hidden'); document.removeEventListener('click', close); }};
+  setTimeout(() => document.addEventListener('click', close), 0);
+}
+
 // Search & filter listeners
 document.getElementById('tpl-search-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadTemplates(); });
 document.getElementById('tpl-filter-active').addEventListener('change', () => loadTemplates());
+document.getElementById('tpl-sort-select').addEventListener('change', () => loadTemplates());
 
 function openTemplateModal(tpl = null) {
   document.getElementById('template-modal').classList.remove('hidden');
