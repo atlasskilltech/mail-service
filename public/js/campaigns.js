@@ -48,8 +48,8 @@ async function loadCampaigns() {
     }
 
     tbody.innerHTML = campaigns.map(c => {
-      const openRate = c.total_recipients > 0 ? ((c.open_count / c.total_recipients) * 100).toFixed(1) + '%' : '-';
-      const clickRate = c.total_recipients > 0 ? ((c.click_count / c.total_recipients) * 100).toFixed(1) + '%' : '-';
+      const openRate = c.sent_count > 0 ? ((c.open_count / c.sent_count) * 100).toFixed(1) + '%' : '-';
+      const clickRate = c.sent_count > 0 ? ((c.click_count / c.sent_count) * 100).toFixed(1) + '%' : '-';
       return `<tr class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onclick="viewCampaign(${c.id})">
         <td class="px-6 py-4">
           <p class="text-sm font-medium text-gray-900">${escapeHtml(c.campaign_name)}</p>

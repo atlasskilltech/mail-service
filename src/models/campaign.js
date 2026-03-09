@@ -272,7 +272,10 @@ class Campaign {
       [campaignId]
     );
 
-    const total = campaign.total_recipients || 1;
+    // Use sent_count for rate calculations (only count emails actually delivered)
+    const sentCount = campaign.sent_count || 0;
+    const totalRecipients = campaign.total_recipients || 1;
+    const rateBase = sentCount || 1; // avoid division by zero
     return {
       campaign_id: campaignId,
       campaign_name: campaign.campaign_name,
@@ -284,11 +287,11 @@ class Campaign {
       unsubscribed: campaign.unsubscribe_count,
       unique_opens: openStats[0].unique_opens || 0,
       total_opens: openStats[0].total_opens || 0,
-      open_rate: ((openStats[0].unique_opens || 0) / total * 100).toFixed(2),
+      open_rate: sentCount > 0 ? ((openStats[0].unique_opens || 0) / rateBase * 100).toFixed(2) : '0.00',
       unique_clicks: clickStats[0].unique_clicks || 0,
       total_clicks: clickStats[0].total_clicks || 0,
-      click_rate: ((clickStats[0].unique_clicks || 0) / total * 100).toFixed(2),
-      bounce_rate: ((campaign.bounce_count || 0) / total * 100).toFixed(2),
+      click_rate: sentCount > 0 ? ((clickStats[0].unique_clicks || 0) / rateBase * 100).toFixed(2) : '0.00',
+      bounce_rate: ((campaign.bounce_count || 0) / totalRecipients * 100).toFixed(2),
       delivery_breakdown: statusBreakdown,
       hourly_opens: hourlyOpens,
       top_links: topLinks,
