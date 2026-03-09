@@ -49,7 +49,7 @@ class CampaignWorker {
    */
   async processSendingCampaigns() {
     const { campaigns } = await Campaign.findAll({ status: 'sending', limit: 10 });
-    const baseUrl = config.tracking?.baseUrl || `http://localhost:${config.port}`;
+    const baseUrl = (config.tracking?.baseUrl || `http://localhost:${config.port}`).replace(/\/+$/, '');
 
     for (const campaign of campaigns) {
       try {
