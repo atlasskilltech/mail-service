@@ -140,7 +140,13 @@ class CampaignService {
     const openPixelUrl = `${baseUrl}/track/open/${trackingId}?cid=${campaign.id}&email=${encodeURIComponent(recipient.email)}`;
     const trackingPixel = `<img src="${openPixelUrl}" width="1" height="1" style="display:none" alt="">`;
     let html = rendered.html || '';
-    html = html.replace('</body>', `${trackingPixel}</body>`);
+    if (html.includes('</body>')) {
+      html = html.replace('</body>', `${trackingPixel}</body>`);
+    } else if (html.includes('</html>')) {
+      html = html.replace('</html>', `${trackingPixel}</html>`);
+    } else {
+      html += trackingPixel;
+    }
 
     // Rewrite links for click tracking
     html = this.rewriteLinks(html, trackingId, baseUrl, campaign.id, recipient.email);
