@@ -18,6 +18,7 @@ const contactListRoutes = require('./routes/contactListRoutes');
 const campaignRoutes = require('./routes/campaignRoutes');
 const trackingRoutes = require('./routes/trackingRoutes');
 const automationRoutes = require('./routes/automationRoutes');
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use((req, res, next) => {
 });
 
 // API Routes
+app.use('/auth', authRoutes);
 app.use('/', healthRoutes);
 app.use('/email', emailRoutes);
 app.use('/templates', templateRoutes);
