@@ -149,7 +149,32 @@
   </style>
 </head>
 <body class="h-full">
-  <div class="flex h-full">
+  <!-- Login Page -->
+  <div id="login-page" class="fixed inset-0 z-[100] flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md mx-4">
+      <div class="text-center mb-8">
+        <div class="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900">Mail Service</h1>
+        <p class="text-sm text-gray-500 mt-1">Sign in to access the dashboard</p>
+      </div>
+      <form id="login-form" onsubmit="handleLogin(event)">
+        <div class="mb-6">
+          <label for="login-email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+          <input type="email" id="login-email" required placeholder="Enter your email"
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-colors">
+        </div>
+        <div id="login-error" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600"></div>
+        <button type="submit" id="login-btn"
+          class="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 px-4 rounded-lg transition-colors text-sm">
+          Sign In
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div id="app-container" class="flex h-full" style="display:none;">
     <!-- Mobile Sidebar Overlay -->
     <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
     <!-- Sidebar -->
@@ -248,8 +273,8 @@
         </div>
         <div class="flex items-center gap-4">
           <div class="hidden sm:flex items-center gap-2">
-            <label class="text-sm text-gray-600">API Key:</label>
-            <input type="text" id="api-key-input" placeholder="Enter your API key" class="text-sm border border-gray-300 rounded-lg px-3 py-1.5 w-40 lg:w-64 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+            <span id="user-email" class="text-sm text-gray-600"></span>
+            <button onclick="handleLogout()" class="text-sm bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-lg font-medium transition-colors">Logout</button>
           </div>
         </div>
       </header>

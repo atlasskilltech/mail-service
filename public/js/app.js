@@ -1,18 +1,100 @@
-// API helper
-function getApiKey() {
-  return document.getElementById('api-key-input').value.trim();
+// Auth helpers
+function getToken() {
+  return localStorage.getItem('jwt_token');
 }
 
+function getStoredEmail() {
+  return localStorage.getItem('user_email');
+}
+
+function setAuth(token, email) {
+  localStorage.setItem('jwt_token', token);
+  localStorage.setItem('user_email', email);
+}
+
+function clearAuth() {
+  localStorage.removeItem('jwt_token');
+  localStorage.removeItem('user_email');
+}
+
+function isLoggedIn() {
+  return !!getToken();
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('login-email').value.trim();
+  const errorEl = document.getElementById('login-error');
+  const btn = document.getElementById('login-btn');
+
+  errorEl.classList.add('hidden');
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+
+  try {
+    const res = await fetch('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+
+    setAuth(data.token, data.email);
+    showApp();
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+}
+
+function handleLogout() {
+  clearAuth();
+  showLogin();
+}
+
+function showApp() {
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app-container').style.display = 'flex';
+  const emailEl = document.getElementById('user-email');
+  if (emailEl) emailEl.textContent = getStoredEmail() || '';
+  if (typeof loadDashboard === 'function') loadDashboard();
+}
+
+function showLogin() {
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('app-container').style.display = 'none';
+}
+
+// Check auth on page load
+document.addEventListener('DOMContentLoaded', function() {
+  if (isLoggedIn()) {
+    showApp();
+  } else {
+    showLogin();
+  }
+});
+
+// API helper
 async function api(method, path, body = null) {
   const headers = { 'Content-Type': 'application/json' };
-  const apiKey = getApiKey();
-  if (apiKey) headers['X-API-Key'] = apiKey;
+  const token = getToken();
+  if (token) headers['Authorization'] = 'Bearer ' + token;
 
   const opts = { method, headers };
   if (body) opts.body = JSON.stringify(body);
 
   const res = await fetch(path, opts);
   const data = await res.json();
+
+  if (res.status === 401) {
+    clearAuth();
+    showLogin();
+    throw new Error('Session expired. Please login again.');
+  }
 
   if (!res.ok) {
     throw new Error(data.error || data.details || `Request failed (${res.status})`);
