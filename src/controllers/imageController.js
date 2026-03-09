@@ -13,15 +13,13 @@ class ImageController {
       }
 
       const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const url = `${baseUrl}/uploads/${req.file.filename}`;
-
       res.status(201).json({
         message: 'Image uploaded',
         filename: req.file.filename,
         originalName: req.file.originalname,
         size: req.file.size,
         mimetype: req.file.mimetype,
-        url
+        url: `${baseUrl}/uploads/${req.file.filename}`
       });
     } catch (error) {
       logger.error('Upload image error:', error);
@@ -51,22 +49,25 @@ class ImageController {
     }
   }
 
-  async listImages(_req, res) {
+  async listImages(req, res) {
     try {
-      const files = fs.readdirSync(UPLOAD_DIR);
-      const images = files
-        .filter(f => ALLOWED_EXT.includes(path.extname(f).toLowerCase()))
-        .map(f => {
-          const stats = fs.statSync(path.join(UPLOAD_DIR, f));
+      const files = await fs.promises.readdir(UPLOAD_DIR);
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+      const imageFiles = files.filter(f => ALLOWED_EXT.includes(path.extname(f).toLowerCase()));
+      const images = await Promise.all(
+        imageFiles.map(async f => {
+          const stats = await fs.promises.stat(path.join(UPLOAD_DIR, f));
           return {
             filename: f,
             size: stats.size,
             uploadedAt: stats.mtime.toISOString(),
-            url: `/uploads/${f}`
+            url: `${baseUrl}/uploads/${f}`
           };
         })
-        .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+      );
 
+      images.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
       res.json({ images, count: images.length });
     } catch (error) {
       logger.error('List images error:', error);
@@ -77,17 +78,18 @@ class ImageController {
   async deleteImage(req, res) {
     try {
       const { filename } = req.params;
-
-      // Sanitize filename to prevent path traversal
       const sanitized = path.basename(filename);
       const filePath = path.join(UPLOAD_DIR, sanitized);
 
-      if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: 'Image not found' });
+      try {
+        await fs.promises.unlink(filePath);
+        res.json({ message: 'Image deleted', filename: sanitized });
+      } catch (err) {
+        if (err.code === 'ENOENT') {
+          return res.status(404).json({ error: 'Image not found' });
+        }
+        throw err;
       }
-
-      fs.unlinkSync(filePath);
-      res.json({ message: 'Image deleted', filename: sanitized });
     } catch (error) {
       logger.error('Delete image error:', error);
       res.status(500).json({ error: 'Failed to delete image' });
