@@ -65,7 +65,9 @@ class CampaignController {
 
   async send(req, res) {
     try {
-      const result = await campaignService.sendCampaign(req.params.id);
+      // Derive public base URL from the request for tracking pixel/click URLs
+      const requestBaseUrl = `${req.protocol}://${req.get('host')}`;
+      const result = await campaignService.sendCampaign(req.params.id, { requestBaseUrl });
       res.json(result);
     } catch (error) {
       logger.error('Send campaign error:', error);
@@ -97,7 +99,8 @@ class CampaignController {
 
   async resume(req, res) {
     try {
-      const result = await campaignService.resumeCampaign(req.params.id);
+      const requestBaseUrl = `${req.protocol}://${req.get('host')}`;
+      const result = await campaignService.resumeCampaign(req.params.id, { requestBaseUrl });
       res.json(result);
     } catch (error) {
       logger.error('Resume campaign error:', error);
