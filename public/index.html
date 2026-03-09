@@ -114,6 +114,17 @@
           Suppression List
         </a>
         <div class="pt-3 mt-3 border-t border-gray-200">
+          <p class="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Marketing</p>
+        </div>
+        <a href="#" onclick="showPage('campaigns')" id="nav-campaigns" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+          Campaigns
+        </a>
+        <a href="#" onclick="showPage('automations')" id="nav-automations" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Automations
+        </a>
+        <div class="pt-3 mt-3 border-t border-gray-200">
           <p class="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Audience</p>
         </div>
         <a href="#" onclick="showPage('contacts')" id="nav-contacts" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
@@ -713,6 +724,265 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Campaigns Page -->
+        <div id="page-campaigns" class="page hidden fade-in">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h3 class="text-xl font-bold text-gray-900">Email Campaigns</h3>
+              <p class="text-sm text-gray-500 mt-1">Create, schedule, and track marketing campaigns</p>
+            </div>
+            <button onclick="showCreateCampaignForm()" class="bg-primary-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              New Campaign
+            </button>
+          </div>
+          <!-- Campaign Stats Row -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="campaign-stats-row">
+            <div class="bg-white rounded-xl border border-gray-200 p-4"><p class="text-xs text-gray-500">Total Campaigns</p><p id="camp-stat-total" class="text-2xl font-bold text-gray-900 mt-1">-</p></div>
+            <div class="bg-white rounded-xl border border-gray-200 p-4"><p class="text-xs text-gray-500">Active / Sending</p><p id="camp-stat-active" class="text-2xl font-bold text-blue-600 mt-1">-</p></div>
+            <div class="bg-white rounded-xl border border-gray-200 p-4"><p class="text-xs text-gray-500">Completed</p><p id="camp-stat-completed" class="text-2xl font-bold text-green-600 mt-1">-</p></div>
+            <div class="bg-white rounded-xl border border-gray-200 p-4"><p class="text-xs text-gray-500">Draft</p><p id="camp-stat-draft" class="text-2xl font-bold text-gray-600 mt-1">-</p></div>
+          </div>
+          <!-- Filter bar -->
+          <div class="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex items-center gap-4">
+            <select id="campaign-filter-status" onchange="loadCampaigns()" class="text-sm border border-gray-300 rounded-lg px-3 py-2">
+              <option value="">All Statuses</option>
+              <option value="draft">Draft</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="sending">Sending</option>
+              <option value="completed">Completed</option>
+              <option value="paused">Paused</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+            <input type="text" id="campaign-filter-search" placeholder="Search campaigns..." onkeyup="loadCampaigns()" class="text-sm border border-gray-300 rounded-lg px-3 py-2 flex-1">
+          </div>
+          <!-- Campaign List -->
+          <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <table class="w-full">
+              <thead><tr class="bg-gray-50 border-b border-gray-200">
+                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Campaign</th>
+                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Sent</th>
+                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Open Rate</th>
+                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Click Rate</th>
+                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Created</th>
+                <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+              </tr></thead>
+              <tbody id="campaign-table-body"><tr><td colspan="7" class="px-6 py-12 text-center text-sm text-gray-500">Loading...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Campaign Detail Page -->
+        <div id="page-campaign-detail" class="page hidden fade-in">
+          <div class="flex items-center gap-3 mb-6">
+            <button onclick="showPage('campaigns')" class="text-gray-500 hover:text-gray-700"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
+            <div>
+              <h3 id="campaign-detail-name" class="text-xl font-bold text-gray-900">Campaign Detail</h3>
+              <p id="campaign-detail-subject" class="text-sm text-gray-500 mt-0.5"></p>
+            </div>
+            <div class="ml-auto flex items-center gap-2" id="campaign-detail-actions"></div>
+          </div>
+          <!-- Analytics Cards -->
+          <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6" id="campaign-analytics-cards"></div>
+          <!-- Tabs -->
+          <div class="border-b border-gray-200 mb-6">
+            <nav class="flex gap-6">
+              <button onclick="showCampaignTab('overview')" id="camp-tab-overview" class="camp-tab pb-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600">Overview</button>
+              <button onclick="showCampaignTab('recipients')" id="camp-tab-recipients" class="camp-tab pb-3 text-sm font-medium text-gray-500 hover:text-gray-700">Recipients</button>
+              <button onclick="showCampaignTab('activity')" id="camp-tab-activity" class="camp-tab pb-3 text-sm font-medium text-gray-500 hover:text-gray-700">Activity</button>
+            </nav>
+          </div>
+          <div id="campaign-tab-content"></div>
+        </div>
+
+        <!-- Create Campaign Page -->
+        <div id="page-campaign-create" class="page hidden fade-in">
+          <div class="flex items-center gap-3 mb-6">
+            <button onclick="showPage('campaigns')" class="text-gray-500 hover:text-gray-700"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
+            <h3 class="text-xl font-bold text-gray-900">Create Campaign</h3>
+          </div>
+          <form id="campaign-create-form" onsubmit="submitCreateCampaign(event)" class="max-w-2xl space-y-5">
+            <div class="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+              <h4 class="text-sm font-semibold text-gray-900 uppercase tracking-wider">Campaign Details</h4>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Campaign Name *</label>
+                <input type="text" id="camp-name" required placeholder="e.g. MBA Admissions 2026" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Subject Line *</label>
+                <input type="text" id="camp-subject" required placeholder="e.g. Admissions Open for MBA 2026" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">From Email (optional)</label>
+                  <input type="email" id="camp-from" placeholder="sender@yourdomain.com" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Reply To (optional)</label>
+                  <input type="email" id="camp-replyto" placeholder="reply@yourdomain.com" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+                </div>
+              </div>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+              <h4 class="text-sm font-semibold text-gray-900 uppercase tracking-wider">Template & Audience</h4>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Email Template *</label>
+                <select id="camp-template" required class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+                  <option value="">Select a template...</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Target List *</label>
+                <select id="camp-list" required class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+                  <option value="">Select a list...</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Template Variables (JSON, optional)</label>
+                <textarea id="camp-template-data" rows="3" placeholder='{"company_name": "YourCo", "cta_url": "https://example.com"}' class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-mono focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"></textarea>
+              </div>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+              <h4 class="text-sm font-semibold text-gray-900 uppercase tracking-wider">Schedule (optional)</h4>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Send At</label>
+                <input type="datetime-local" id="camp-schedule" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+                <p class="text-xs text-gray-500 mt-1">Leave empty to save as draft and send manually later</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <button type="submit" class="bg-primary-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">Create Campaign</button>
+              <button type="button" onclick="showPage('campaigns')" class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Automations Page -->
+        <div id="page-automations" class="page hidden fade-in">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h3 class="text-xl font-bold text-gray-900">Automations</h3>
+              <p class="text-sm text-gray-500 mt-1">Create automated email workflows triggered by events</p>
+            </div>
+            <button onclick="showCreateAutomationForm()" class="bg-primary-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              New Automation
+            </button>
+          </div>
+          <!-- Automation List -->
+          <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <table class="w-full">
+              <thead><tr class="bg-gray-50 border-b border-gray-200">
+                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Name</th>
+                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Trigger</th>
+                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Entered</th>
+                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Completed</th>
+                <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+              </tr></thead>
+              <tbody id="automation-table-body"><tr><td colspan="6" class="px-6 py-12 text-center text-sm text-gray-500">Loading...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Automation Detail Page -->
+        <div id="page-automation-detail" class="page hidden fade-in">
+          <div class="flex items-center gap-3 mb-6">
+            <button onclick="showPage('automations')" class="text-gray-500 hover:text-gray-700"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
+            <div>
+              <h3 id="automation-detail-name" class="text-xl font-bold text-gray-900">Automation Detail</h3>
+              <p id="automation-detail-desc" class="text-sm text-gray-500 mt-0.5"></p>
+            </div>
+            <div class="ml-auto flex items-center gap-2" id="automation-detail-actions"></div>
+          </div>
+          <!-- Stats -->
+          <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="bg-white rounded-xl border border-gray-200 p-4"><p class="text-xs text-gray-500">Trigger</p><p id="auto-stat-trigger" class="text-lg font-semibold text-gray-900 mt-1">-</p></div>
+            <div class="bg-white rounded-xl border border-gray-200 p-4"><p class="text-xs text-gray-500">Total Entered</p><p id="auto-stat-entered" class="text-lg font-semibold text-blue-600 mt-1">-</p></div>
+            <div class="bg-white rounded-xl border border-gray-200 p-4"><p class="text-xs text-gray-500">Total Completed</p><p id="auto-stat-completed" class="text-lg font-semibold text-green-600 mt-1">-</p></div>
+          </div>
+          <!-- Steps -->
+          <div class="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="text-sm font-semibold text-gray-900 uppercase tracking-wider">Workflow Steps</h4>
+              <button onclick="showAddStepForm()" class="text-primary-600 text-sm font-medium hover:underline">+ Add Step</button>
+            </div>
+            <div id="automation-steps-list" class="space-y-3"></div>
+          </div>
+          <!-- Add Step Form (hidden) -->
+          <div id="add-step-form" class="bg-white rounded-xl border border-gray-200 p-6 mb-6 hidden">
+            <h4 class="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">Add Step</h4>
+            <div class="grid grid-cols-3 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Step Order</label>
+                <input type="number" id="step-order" min="1" value="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Action Type</label>
+                <select id="step-action-type" onchange="updateStepConfigUI()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                  <option value="send_email">Send Email</option>
+                  <option value="wait">Wait / Delay</option>
+                  <option value="add_tag">Add Tag</option>
+                  <option value="remove_tag">Remove Tag</option>
+                  <option value="move_to_list">Move to List</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Config (JSON)</label>
+                <textarea id="step-config" rows="2" placeholder='{"template":"welcome"}' class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"></textarea>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 mt-4">
+              <button onclick="submitAddStep()" class="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700">Add Step</button>
+              <button onclick="document.getElementById('add-step-form').classList.add('hidden')" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
+            </div>
+          </div>
+          <!-- Enrollments -->
+          <div class="bg-white rounded-xl border border-gray-200 p-6">
+            <h4 class="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">Recent Enrollments</h4>
+            <div id="automation-enrollments-list" class="text-sm text-gray-500">Loading...</div>
+          </div>
+        </div>
+
+        <!-- Create Automation Page -->
+        <div id="page-automation-create" class="page hidden fade-in">
+          <div class="flex items-center gap-3 mb-6">
+            <button onclick="showPage('automations')" class="text-gray-500 hover:text-gray-700"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
+            <h3 class="text-xl font-bold text-gray-900">Create Automation</h3>
+          </div>
+          <form id="automation-create-form" onsubmit="submitCreateAutomation(event)" class="max-w-xl space-y-5">
+            <div class="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Automation Name *</label>
+                <input type="text" id="auto-name" required placeholder="e.g. Welcome Series" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea id="auto-desc" rows="2" placeholder="Brief description..." class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"></textarea>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Trigger Type *</label>
+                <select id="auto-trigger" required class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+                  <option value="">Select trigger...</option>
+                  <option value="signup">New Signup</option>
+                  <option value="tag_added">Tag Added</option>
+                  <option value="list_added">Added to List</option>
+                  <option value="manual">Manual Enrollment</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Trigger Config (JSON, optional)</label>
+                <textarea id="auto-trigger-config" rows="2" placeholder='{"tag":"MBA Lead"}' class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-mono focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"></textarea>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <button type="submit" class="bg-primary-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">Create Automation</button>
+              <button type="button" onclick="showPage('automations')" class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+            </div>
+          </form>
         </div>
 
         <!-- API Docs Page -->
@@ -1445,5 +1715,6 @@
   <script src="/js/app.js"></script>
   <script src="/js/template-editor.js"></script>
   <script src="/js/contacts.js"></script>
+  <script src="/js/campaigns.js"></script>
 </body>
 </html>
