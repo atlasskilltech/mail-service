@@ -53,6 +53,10 @@ const config = {
   cors: {
     origin: process.env.CORS_ORIGIN || '*',
     methods: process.env.CORS_METHODS || 'GET,POST,PUT,DELETE,OPTIONS'
+  },
+
+  tracking: {
+    baseUrl: process.env.TRACKING_BASE_URL || null
   }
 };
 

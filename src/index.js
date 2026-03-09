@@ -15,6 +15,9 @@ const webhookRoutes = require('./routes/webhookRoutes');
 const imageRoutes = require('./routes/imageRoutes');
 const contactRoutes = require('./routes/contactRoutes');
 const contactListRoutes = require('./routes/contactListRoutes');
+const campaignRoutes = require('./routes/campaignRoutes');
+const trackingRoutes = require('./routes/trackingRoutes');
+const automationRoutes = require('./routes/automationRoutes');
 
 const app = express();
 
@@ -51,6 +54,9 @@ app.use('/webhooks', webhookRoutes);
 app.use('/images', imageRoutes);
 app.use('/contacts', contactRoutes);
 app.use('/lists', contactListRoutes);
+app.use('/campaigns', campaignRoutes);
+app.use('/track', trackingRoutes);
+app.use('/automations', automationRoutes);
 
 // Dashboard (static files)
 app.use(express.static(path.join(__dirname, '..', 'public')));
