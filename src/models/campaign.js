@@ -182,7 +182,40 @@ class Campaign {
     return rows[0] || null;
   }
 
+  /**
+   * Recover stale-queued recipients and auto-finalize campaigns.
+   * Recipients stuck in 'queued' for more than 5 minutes are marked 'failed'.
+   * If no pending/queued remain, the campaign is marked 'completed'.
+   */
+  static async recoverStaleCampaign(campaignId) {
+    // Mark recipients that have been 'queued' for over 5 minutes as 'failed'
+    await db.execute(
+      `UPDATE campaign_recipients SET status = 'failed', error_message = 'Delivery timeout - stuck in queue'
+       WHERE campaign_id = ? AND status = 'queued' AND created_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+       AND (sent_at IS NULL)`,
+      [campaignId]
+    );
+
+    // Check if campaign is still 'sending' but all recipients are processed
+    const [campaign] = await db.execute('SELECT status FROM campaigns WHERE id = ?', [campaignId]);
+    if (campaign[0] && campaign[0].status === 'sending') {
+      const [remaining] = await db.execute(
+        "SELECT COUNT(*) as cnt FROM campaign_recipients WHERE campaign_id = ? AND status IN ('pending', 'queued')",
+        [campaignId]
+      );
+      if (remaining[0].cnt === 0) {
+        await Campaign.updateCounts(campaignId);
+        await Campaign.updateStatus(campaignId, 'completed');
+      } else {
+        await Campaign.updateCounts(campaignId);
+      }
+    }
+  }
+
   static async getAnalytics(campaignId) {
+    // Auto-recover stale campaigns when viewing analytics
+    await Campaign.recoverStaleCampaign(campaignId);
+
     const campaign = await Campaign.findById(campaignId);
     if (!campaign) return null;
 

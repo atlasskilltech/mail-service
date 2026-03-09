@@ -122,6 +122,36 @@ class EmailWorker {
           await EmailLog.updateStatus(logId, 'failed', { errorMessage: error.message });
           await queueService.deleteMessage(message.ReceiptHandle);
           this.failedCount++;
+
+          // Update campaign_recipients status to 'failed' on permanent failure
+          try {
+            const db = require('../config/database');
+            const [rows] = await db.execute(
+              'SELECT id, campaign_id FROM campaign_recipients WHERE email_log_id = ? AND status = ?',
+              [logId, 'queued']
+            );
+            if (rows.length > 0) {
+              const campaignId = rows[0].campaign_id;
+              await Campaign.updateRecipientStatus(rows[0].id, 'failed', { errorMessage: error.message });
+              await Campaign.updateCounts(campaignId);
+
+              // Check if campaign can be completed now
+              const [remaining] = await db.execute(
+                "SELECT COUNT(*) as cnt FROM campaign_recipients WHERE campaign_id = ? AND status IN ('pending', 'queued')",
+                [campaignId]
+              );
+              if (remaining[0].cnt === 0) {
+                const [campRow] = await db.execute('SELECT status FROM campaigns WHERE id = ?', [campaignId]);
+                if (campRow[0] && campRow[0].status === 'sending') {
+                  await Campaign.updateStatus(campaignId, 'completed');
+                  logger.info(`Campaign ${campaignId} completed - all recipients processed`);
+                }
+              }
+            }
+          } catch (crError) {
+            logger.error(`Failed to update campaign recipient for failed logId=${logId}:`, crError.message);
+          }
+
           logger.error(`Email logId=${logId} permanently failed after ${config.worker.retryAttempts} retries`);
         }
       }
