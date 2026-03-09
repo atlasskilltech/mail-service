@@ -76,32 +76,32 @@ class CampaignService {
    * Process a batch of pending recipients for a campaign
    */
   async processBatch(campaignId, campaign) {
-    const pendingRecipients = await Campaign.getRecipientsByStatus(campaignId, 'pending', 50);
+    // Process all pending recipients in batches of 50
+    let batch;
+    do {
+      batch = await Campaign.getRecipientsByStatus(campaignId, 'pending', 50);
 
-    if (pendingRecipients.length === 0) {
-      // Check if all recipients have been processed (sent/failed/bounced, not queued)
-      const queuedRecipients = await Campaign.getRecipientsByStatus(campaignId, 'queued', 1);
-      if (queuedRecipients.length === 0) {
-        await Campaign.updateCounts(campaignId);
-        await Campaign.updateStatus(campaignId, 'completed');
-
-        webhookService.trigger('campaign.completed', {
-          campaignId,
-          campaignName: campaign.campaign_name
-        }).catch(err => logger.error('Webhook trigger error:', err));
+      for (const recipient of batch) {
+        try {
+          await this.sendToRecipient(campaign, recipient);
+        } catch (error) {
+          logger.error(`Campaign ${campaignId}: Failed to queue email for ${recipient.email}:`, error.message);
+          await Campaign.updateRecipientStatus(recipient.id, 'failed', { errorMessage: error.message });
+        }
       }
-      // If there are still queued recipients, campaign stays in 'sending' status
-      // The email worker will handle completion after all emails are delivered
-      return;
-    }
+    } while (batch.length > 0);
 
-    for (const recipient of pendingRecipients) {
-      try {
-        await this.sendToRecipient(campaign, recipient);
-      } catch (error) {
-        logger.error(`Campaign ${campaignId}: Failed to queue email for ${recipient.email}:`, error.message);
-        await Campaign.updateRecipientStatus(recipient.id, 'failed', { errorMessage: error.message });
-      }
+    // After all pending are queued, check if campaign can be completed immediately
+    // (e.g., all failed to queue). Otherwise the worker will handle completion.
+    const queuedRecipients = await Campaign.getRecipientsByStatus(campaignId, 'queued', 1);
+    if (queuedRecipients.length === 0) {
+      await Campaign.updateCounts(campaignId);
+      await Campaign.updateStatus(campaignId, 'completed');
+
+      webhookService.trigger('campaign.completed', {
+        campaignId,
+        campaignName: campaign.campaign_name
+      }).catch(err => logger.error('Webhook trigger error:', err));
     }
   }
 
