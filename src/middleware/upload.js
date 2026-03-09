@@ -1,21 +1,11 @@
 const multer = require('multer');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const config = require('../config');
 
 const UPLOAD_DIR = path.join(__dirname, '..', '..', 'public', 'uploads');
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, UPLOAD_DIR);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const name = `${Date.now()}-${uuidv4().slice(0, 8)}${ext}`;
-    cb(null, name);
-  }
-});
 
 function fileFilter(_req, file, cb) {
   if (ALLOWED_TYPES.includes(file.mimetype)) {
@@ -23,6 +13,22 @@ function fileFilter(_req, file, cb) {
   } else {
     cb(new Error(`Invalid file type. Allowed: ${ALLOWED_TYPES.join(', ')}`), false);
   }
+}
+
+let storage;
+if (config.s3.enabled) {
+  // Use memory storage — buffer is then uploaded to S3 in the controller
+  storage = multer.memoryStorage();
+} else {
+  // Local disk fallback
+  storage = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      const name = `${Date.now()}-${uuidv4().slice(0, 8)}${ext}`;
+      cb(null, name);
+    }
+  });
 }
 
 const upload = multer({

@@ -32,6 +32,14 @@ const config = {
     configurationSet: process.env.SES_CONFIGURATION_SET || null
   },
 
+  s3: {
+    bucket: process.env.S3_BUCKET || '',
+    region: process.env.S3_REGION || process.env.AWS_REGION || 'us-east-1',
+    prefix: process.env.S3_PREFIX || 'uploads/',
+    cdnUrl: process.env.S3_CDN_URL || '',  // Optional CloudFront URL
+    enabled: !!process.env.S3_BUCKET
+  },
+
   sqs: {
     emailQueueUrl: process.env.SQS_EMAIL_QUEUE_URL,
     bounceQueueUrl: process.env.SQS_BOUNCE_QUEUE_URL
