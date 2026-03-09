@@ -805,7 +805,8 @@ function selectGalleryImage(url) {
 }
 
 function copyImageUrl(url) {
-  const fullUrl = window.location.origin + url;
+  // S3 URLs are already absolute; local URLs need origin prepended
+  const fullUrl = url.startsWith('http') ? url : window.location.origin + url;
   navigator.clipboard.writeText(fullUrl).then(() => {
     showToast('Image URL copied', 'success');
   }).catch(() => {
