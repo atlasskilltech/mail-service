@@ -241,13 +241,25 @@ function editorRedo() {
 
 // ---- Palette Drag Setup ----
 function setupPaletteDrag() {
-  document.querySelectorAll('.dnd-palette-item').forEach(item => {
+  document.querySelectorAll('.dnd-palette-item, .dnd-palette-card, .dnd-palette-layout').forEach(item => {
+    if (!item.dataset.block) return;
     item.removeEventListener('dragstart', handlePaletteDragStart);
     item.addEventListener('dragstart', handlePaletteDragStart);
-    // Click to append
     item.removeEventListener('click', handlePaletteClick);
     item.addEventListener('click', handlePaletteClick);
   });
+}
+
+function switchEditorTab(tab) {
+  document.querySelectorAll('.dnd-palette-tab').forEach(t => t.classList.remove('active'));
+  ['elements', 'layouts', 'sections'].forEach(id => {
+    const el = document.getElementById('pal-content-' + id);
+    if (el) el.classList.add('hidden');
+  });
+  const tabEl = document.getElementById('pal-tab-' + tab);
+  const contentEl = document.getElementById('pal-content-' + tab);
+  if (tabEl) tabEl.classList.add('active');
+  if (contentEl) contentEl.classList.remove('hidden');
 }
 
 function handlePaletteDragStart(e) {
