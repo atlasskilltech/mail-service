@@ -246,7 +246,7 @@ function showCampaignTab(tab) {
     }
 
     content.innerHTML = `
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="bg-white rounded-xl border border-gray-200 p-6">
           <h4 class="text-sm font-semibold text-gray-900 mb-3">Campaign Info</h4>
           <dl class="space-y-2 text-sm">
