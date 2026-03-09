@@ -79,14 +79,19 @@ class CampaignService {
     const pendingRecipients = await Campaign.getRecipientsByStatus(campaignId, 'pending', 50);
 
     if (pendingRecipients.length === 0) {
-      await Campaign.updateCounts(campaignId);
-      await Campaign.updateStatus(campaignId, 'completed');
+      // Check if all recipients have been processed (sent/failed/bounced, not queued)
+      const queuedRecipients = await Campaign.getRecipientsByStatus(campaignId, 'queued', 1);
+      if (queuedRecipients.length === 0) {
+        await Campaign.updateCounts(campaignId);
+        await Campaign.updateStatus(campaignId, 'completed');
 
-      webhookService.trigger('campaign.completed', {
-        campaignId,
-        campaignName: campaign.campaign_name
-      }).catch(err => logger.error('Webhook trigger error:', err));
-
+        webhookService.trigger('campaign.completed', {
+          campaignId,
+          campaignName: campaign.campaign_name
+        }).catch(err => logger.error('Webhook trigger error:', err));
+      }
+      // If there are still queued recipients, campaign stays in 'sending' status
+      // The email worker will handle completion after all emails are delivered
       return;
     }
 
@@ -131,14 +136,14 @@ class CampaignService {
     // Render template with recipient data
     const rendered = await templateService.renderTemplate(template.name, recipientData);
 
-    // Inject open tracking pixel
-    const openPixelUrl = `${baseUrl}/track/open/${trackingId}`;
+    // Inject open tracking pixel (include cid and email for campaign recipient tracking)
+    const openPixelUrl = `${baseUrl}/track/open/${trackingId}?cid=${campaign.id}&email=${encodeURIComponent(recipient.email)}`;
     const trackingPixel = `<img src="${openPixelUrl}" width="1" height="1" style="display:none" alt="">`;
     let html = rendered.html || '';
     html = html.replace('</body>', `${trackingPixel}</body>`);
 
     // Rewrite links for click tracking
-    html = this.rewriteLinks(html, trackingId, baseUrl, campaign.id);
+    html = this.rewriteLinks(html, trackingId, baseUrl, campaign.id, recipient.email);
 
     // Create email log
     const logId = await EmailLog.create({
@@ -167,11 +172,11 @@ class CampaignService {
   /**
    * Rewrite all links in HTML to go through click tracking
    */
-  rewriteLinks(html, trackingId, baseUrl, campaignId) {
+  rewriteLinks(html, trackingId, baseUrl, campaignId, recipientEmail) {
     return html.replace(/href="(https?:\/\/[^"]+)"/g, (match, url) => {
       // Don't rewrite unsubscribe links (already tracked)
       if (url.includes('/track/unsubscribe')) return match;
-      const trackUrl = `${baseUrl}/track/click/${trackingId}?url=${encodeURIComponent(url)}&cid=${campaignId}`;
+      const trackUrl = `${baseUrl}/track/click/${trackingId}?url=${encodeURIComponent(url)}&cid=${campaignId}&email=${encodeURIComponent(recipientEmail || '')}`;
       return `href="${trackUrl}"`;
     });
   }
