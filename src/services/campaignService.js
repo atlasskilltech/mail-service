@@ -55,7 +55,8 @@ class CampaignService {
 
     // Determine the public base URL for tracking links
     // Priority: config TRACKING_BASE_URL > request origin > localhost fallback
-    const baseUrl = config.tracking?.baseUrl || requestBaseUrl || `http://localhost:${config.port}`;
+    const rawBaseUrl = config.tracking?.baseUrl || requestBaseUrl || `http://localhost:${config.port}`;
+    const baseUrl = rawBaseUrl.replace(/\/+$/, ''); // strip trailing slashes
 
     // Populate recipients if not already done
     const { recipients } = await Campaign.getRecipients(campaignId, { limit: 1 });
@@ -141,7 +142,7 @@ class CampaignService {
 
     // Inject open tracking pixel (include cid and email for campaign recipient tracking)
     const openPixelUrl = `${baseUrl}/track/open/${trackingId}?cid=${campaign.id}&email=${encodeURIComponent(recipient.email)}`;
-    const trackingPixel = `<img src="${openPixelUrl}" width="1" height="1" style="display:none" alt="">`;
+    const trackingPixel = `<img src="${openPixelUrl}" width="1" height="1" border="0" style="border:0;width:1px;height:1px;" alt="">`;
     let html = rendered.html || '';
     if (html.includes('</body>')) {
       html = html.replace('</body>', `${trackingPixel}</body>`);
@@ -223,7 +224,8 @@ class CampaignService {
     const campaign = await Campaign.findById(campaignId);
     if (!campaign) throw new Error('Campaign not found');
     if (campaign.status !== 'paused') throw new Error('Only paused campaigns can be resumed');
-    const baseUrl = config.tracking?.baseUrl || requestBaseUrl || `http://localhost:${config.port}`;
+    const rawBaseUrl = config.tracking?.baseUrl || requestBaseUrl || `http://localhost:${config.port}`;
+    const baseUrl = rawBaseUrl.replace(/\/+$/, '');
     await Campaign.updateStatus(campaignId, 'sending');
     await this.processBatch(campaignId, campaign, baseUrl);
     return { success: true };
