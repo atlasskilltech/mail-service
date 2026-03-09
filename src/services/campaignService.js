@@ -46,12 +46,16 @@ class CampaignService {
   /**
    * Send a campaign immediately or schedule it
    */
-  async sendCampaign(campaignId) {
+  async sendCampaign(campaignId, { requestBaseUrl } = {}) {
     const campaign = await Campaign.findById(campaignId);
     if (!campaign) throw new Error('Campaign not found');
     if (!['draft', 'scheduled'].includes(campaign.status)) {
       throw new Error(`Campaign cannot be sent in status: ${campaign.status}`);
     }
+
+    // Determine the public base URL for tracking links
+    // Priority: config TRACKING_BASE_URL > request origin > localhost fallback
+    const baseUrl = config.tracking?.baseUrl || requestBaseUrl || `http://localhost:${config.port}`;
 
     // Populate recipients if not already done
     const { recipients } = await Campaign.getRecipients(campaignId, { limit: 1 });
@@ -67,7 +71,7 @@ class CampaignService {
     }).catch(err => logger.error('Webhook trigger error:', err));
 
     // Process recipients in batches
-    await this.processBatch(campaignId, campaign);
+    await this.processBatch(campaignId, campaign, baseUrl);
 
     return { success: true, campaignId };
   }
@@ -75,7 +79,7 @@ class CampaignService {
   /**
    * Process a batch of pending recipients for a campaign
    */
-  async processBatch(campaignId, campaign) {
+  async processBatch(campaignId, campaign, baseUrl) {
     // Process all pending recipients in batches of 50
     let batch;
     do {
@@ -83,7 +87,7 @@ class CampaignService {
 
       for (const recipient of batch) {
         try {
-          await this.sendToRecipient(campaign, recipient);
+          await this.sendToRecipient(campaign, recipient, baseUrl);
         } catch (error) {
           logger.error(`Campaign ${campaignId}: Failed to queue email for ${recipient.email}:`, error.message);
           await Campaign.updateRecipientStatus(recipient.id, 'failed', { errorMessage: error.message });
@@ -108,9 +112,8 @@ class CampaignService {
   /**
    * Send campaign email to a single recipient
    */
-  async sendToRecipient(campaign, recipient) {
+  async sendToRecipient(campaign, recipient, baseUrl) {
     const trackingId = Tracking.generateTrackingId();
-    const baseUrl = config.tracking?.baseUrl || `http://localhost:${config.port}`;
 
     // Build per-recipient template data
     const recipientData = {
@@ -216,12 +219,13 @@ class CampaignService {
   /**
    * Resume a paused campaign
    */
-  async resumeCampaign(campaignId) {
+  async resumeCampaign(campaignId, { requestBaseUrl } = {}) {
     const campaign = await Campaign.findById(campaignId);
     if (!campaign) throw new Error('Campaign not found');
     if (campaign.status !== 'paused') throw new Error('Only paused campaigns can be resumed');
+    const baseUrl = config.tracking?.baseUrl || requestBaseUrl || `http://localhost:${config.port}`;
     await Campaign.updateStatus(campaignId, 'sending');
-    await this.processBatch(campaignId, campaign);
+    await this.processBatch(campaignId, campaign, baseUrl);
     return { success: true };
   }
 

@@ -49,10 +49,11 @@ class CampaignWorker {
    */
   async processSendingCampaigns() {
     const { campaigns } = await Campaign.findAll({ status: 'sending', limit: 10 });
+    const baseUrl = config.tracking?.baseUrl || `http://localhost:${config.port}`;
 
     for (const campaign of campaigns) {
       try {
-        await campaignService.processBatch(campaign.id, campaign);
+        await campaignService.processBatch(campaign.id, campaign, baseUrl);
       } catch (error) {
         logger.error(`Failed to process campaign batch ${campaign.id}:`, error.message);
       }
