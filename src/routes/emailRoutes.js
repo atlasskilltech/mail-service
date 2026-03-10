@@ -20,6 +20,11 @@ router.post('/send-template', authenticate, emailSendLimiter, validateSendEmail,
   emailController.sendTemplateEmail(req, res)
 );
 
+// Verify email address(es)
+router.post('/verify', authenticate, (req, res) =>
+  emailController.verifyEmail(req, res)
+);
+
 // Get email status by ID
 router.get('/status/:id', authenticate, (req, res) =>
   emailController.getEmailStatus(req, res)

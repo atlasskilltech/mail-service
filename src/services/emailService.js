@@ -1,6 +1,7 @@
 const templateService = require('./templateService');
 const queueService = require('./queueService');
 const webhookService = require('./webhookService');
+const emailVerifyService = require('./emailVerifyService');
 const EmailLog = require('../models/emailLog');
 const Bounce = require('../models/bounce');
 const config = require('../config');
@@ -29,6 +30,31 @@ class EmailService {
       }
       logger.warn(`Suppressed emails skipped: ${suppressedEmails.join(', ')}`);
       to = activeRecipients.length === 1 ? activeRecipients[0] : activeRecipients;
+    }
+
+    // Verify recipient emails (MX/domain check)
+    const invalidEmails = [];
+    const activeRecipientList = Array.isArray(to) ? to : [to];
+    for (const email of activeRecipientList) {
+      const verification = await emailVerifyService.verifyEmail(email);
+      if (!verification.valid) {
+        invalidEmails.push({ email, reason: verification.reason });
+      }
+    }
+
+    if (invalidEmails.length > 0) {
+      const validRecipients = activeRecipientList.filter(
+        e => !invalidEmails.find(inv => inv.email === e)
+      );
+      if (validRecipients.length === 0) {
+        return {
+          success: false,
+          error: 'All recipient emails failed verification',
+          invalidEmails
+        };
+      }
+      logger.warn(`Invalid emails skipped: ${invalidEmails.map(e => e.email).join(', ')}`);
+      to = validRecipients.length === 1 ? validRecipients[0] : validRecipients;
     }
 
     let emailContent = { subject, html, text };
@@ -72,7 +98,8 @@ class EmailService {
         success: true,
         logId,
         sqsMessageId,
-        suppressed: suppressedEmails.length > 0 ? suppressedEmails : undefined
+        suppressed: suppressedEmails.length > 0 ? suppressedEmails : undefined,
+        invalidEmails: invalidEmails.length > 0 ? invalidEmails : undefined
       };
     } catch (error) {
       await EmailLog.updateStatus(logId, 'failed', { errorMessage: error.message });

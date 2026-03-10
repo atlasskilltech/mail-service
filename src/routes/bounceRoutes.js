@@ -14,6 +14,10 @@ router.get('/stats', authenticate, (req, res) =>
   bounceController.getBounceStats(req, res)
 );
 
+router.get('/all', authenticate, (req, res) =>
+  bounceController.getAllBounces(req, res)
+);
+
 router.get('/email/:email', authenticate, (req, res) =>
   bounceController.getBouncesForEmail(req, res)
 );

@@ -3,6 +3,21 @@ const EmailLog = require('../models/emailLog');
 const logger = require('../utils/logger');
 
 class BounceController {
+  async getAllBounces(req, res) {
+    try {
+      const limit = parseInt(req.query.limit || '50', 10);
+      const offset = parseInt(req.query.offset || '0', 10);
+      const bounceType = req.query.type || null;
+      const sort = req.query.sort === 'oldest' ? 'ASC' : 'DESC';
+
+      const result = await Bounce.findAll({ limit, offset, bounceType, sort });
+      res.json({ ...result, limit, offset });
+    } catch (error) {
+      logger.error('Get all bounces error:', error);
+      res.status(500).json({ error: 'Failed to get bounces' });
+    }
+  }
+
   async getBouncesForEmail(req, res) {
     try {
       const { email } = req.params;
