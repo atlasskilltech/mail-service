@@ -380,6 +380,16 @@
                   <input type="email" id="email-reply-to" placeholder="reply@yourdomain.com" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
                 </div>
                 <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">CC (optional)</label>
+                  <input type="text" id="email-cc" placeholder="cc1@example.com, cc2@example.com" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+                  <p class="text-xs text-gray-500 mt-1">Separate multiple emails with commas</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">BCC (optional)</label>
+                  <input type="text" id="email-bcc" placeholder="bcc1@example.com, bcc2@example.com" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+                  <p class="text-xs text-gray-500 mt-1">Separate multiple emails with commas</p>
+                </div>
+                <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1.5">Template (optional)</label>
                   <select id="email-template" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
                     <option value="">-- No template (custom content) --</option>
@@ -1517,6 +1527,8 @@
                       <tr><td class="py-2 font-mono text-xs text-primary-700">data</td><td class="py-2 text-gray-600">object</td><td class="py-2 text-gray-400">No</td><td class="py-2 text-gray-600">Template variables</td></tr>
                       <tr><td class="py-2 font-mono text-xs text-primary-700">from</td><td class="py-2 text-gray-600">string</td><td class="py-2 text-gray-400">No</td><td class="py-2 text-gray-600">Override sender email</td></tr>
                       <tr><td class="py-2 font-mono text-xs text-primary-700">replyTo</td><td class="py-2 text-gray-600">string | string[]</td><td class="py-2 text-gray-400">No</td><td class="py-2 text-gray-600">Reply-to address(es)</td></tr>
+                      <tr><td class="py-2 font-mono text-xs text-primary-700">cc</td><td class="py-2 text-gray-600">string | string[]</td><td class="py-2 text-gray-400">No</td><td class="py-2 text-gray-600">CC recipient(s)</td></tr>
+                      <tr><td class="py-2 font-mono text-xs text-primary-700">bcc</td><td class="py-2 text-gray-600">string | string[]</td><td class="py-2 text-gray-400">No</td><td class="py-2 text-gray-600">BCC recipient(s)</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -1531,7 +1543,9 @@
     "to": "user@example.com",
     "subject": "Hello!",
     "html": "&lt;h1&gt;Welcome&lt;/h1&gt;&lt;p&gt;Your content here&lt;/p&gt;",
-    "text": "Welcome - plain text version"
+    "text": "Welcome - plain text version",
+    "cc": ["cc1@example.com", "cc2@example.com"],
+    "bcc": "bcc@example.com"
   }'</code></pre>
                   </div>
                 </div>
@@ -1565,6 +1579,8 @@
                       <tr><td class="py-2 font-mono text-xs text-primary-700">data</td><td class="py-2 text-gray-600">object</td><td class="py-2 text-gray-400">No</td><td class="py-2 text-gray-600">Variables to inject (e.g. <code class="bg-gray-100 px-1 rounded">{"name": "John"}</code>)</td></tr>
                       <tr><td class="py-2 font-mono text-xs text-primary-700">from</td><td class="py-2 text-gray-600">string</td><td class="py-2 text-gray-400">No</td><td class="py-2 text-gray-600">Override sender</td></tr>
                       <tr><td class="py-2 font-mono text-xs text-primary-700">replyTo</td><td class="py-2 text-gray-600">string | string[]</td><td class="py-2 text-gray-400">No</td><td class="py-2 text-gray-600">Reply-to address(es)</td></tr>
+                      <tr><td class="py-2 font-mono text-xs text-primary-700">cc</td><td class="py-2 text-gray-600">string | string[]</td><td class="py-2 text-gray-400">No</td><td class="py-2 text-gray-600">CC recipient(s)</td></tr>
+                      <tr><td class="py-2 font-mono text-xs text-primary-700">bcc</td><td class="py-2 text-gray-600">string | string[]</td><td class="py-2 text-gray-400">No</td><td class="py-2 text-gray-600">BCC recipient(s)</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -1580,7 +1596,9 @@
     "template": "welcome",
     "data": {
       "name": "John Doe"
-    }
+    },
+    "cc": "manager@example.com",
+    "bcc": ["admin@example.com"]
   }'</code></pre>
                   </div>
                 </div>

@@ -333,6 +333,10 @@ document.getElementById('send-email-form').addEventListener('submit', async (e) 
 
   if (document.getElementById('email-from').value) body.from = document.getElementById('email-from').value;
   if (document.getElementById('email-reply-to').value) body.replyTo = document.getElementById('email-reply-to').value;
+  const ccVal = document.getElementById('email-cc').value.trim();
+  if (ccVal) body.cc = ccVal.includes(',') ? ccVal.split(',').map(e => e.trim()) : ccVal;
+  const bccVal = document.getElementById('email-bcc').value.trim();
+  if (bccVal) body.bcc = bccVal.includes(',') ? bccVal.split(',').map(e => e.trim()) : bccVal;
 
   if (template) {
     body.template = template;

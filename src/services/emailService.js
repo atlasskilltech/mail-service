@@ -7,7 +7,7 @@ const config = require('../config');
 const logger = require('../utils/logger');
 
 class EmailService {
-  async sendEmail({ to, subject, template, data, html, text, from, replyTo }) {
+  async sendEmail({ to, subject, template, data, html, text, from, replyTo, cc, bcc }) {
     const recipients = Array.isArray(to) ? to : [to];
     const suppressedEmails = [];
 
@@ -42,7 +42,7 @@ class EmailService {
       subject: emailContent.subject,
       template,
       status: 'pending',
-      metadata: { data, from, replyTo }
+      metadata: { data, from, replyTo, cc, bcc }
     });
 
     try {
@@ -54,7 +54,9 @@ class EmailService {
         text: emailContent.text,
         template,
         from,
-        replyTo
+        replyTo,
+        cc,
+        bcc
       });
 
       await EmailLog.updateStatus(logId, 'queued');
@@ -112,8 +114,8 @@ class EmailService {
     };
   }
 
-  async sendTemplateEmail({ to, template, data, from, replyTo }) {
-    return this.sendEmail({ to, template, data, from, replyTo });
+  async sendTemplateEmail({ to, template, data, from, replyTo, cc, bcc }) {
+    return this.sendEmail({ to, template, data, from, replyTo, cc, bcc });
   }
 }
 
