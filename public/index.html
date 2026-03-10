@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mail Service Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
-  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -27,11 +25,6 @@
     .toast { animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s; }
     @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
     @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
-
-    /* Quill Editor */
-    #email-html-editor .ql-editor { font-size: 14px; min-height: 200px; }
-    .ql-toolbar.ql-snow { border-radius: 8px 8px 0 0; border-color: #d1d5db; background: #f9fafb; }
-    .ql-container.ql-snow { border-radius: 0 0 8px 8px; border-color: #d1d5db; }
 
     /* Drag & Drop Editor */
     .dnd-editor-wrap { display:flex; height:calc(100vh - 130px); margin:-32px; border-radius:0; overflow:hidden; }
@@ -70,6 +63,23 @@
     .dnd-drop-zone { min-height:200px; position:relative; }
     .dnd-empty-state { padding:80px 20px; text-align:center; }
     .dnd-properties { width:280px; min-width:280px; background:#fff; border-left:1px solid #e5e7eb; overflow-y:auto; }
+
+    /* Inline Text Editing Toolbar */
+    .dnd-inline-toolbar { display:flex; align-items:center; gap:4px; padding:6px 12px; background:#fff; border-bottom:1px solid #e5e7eb; flex-wrap:wrap; min-height:40px; }
+    .dnd-inline-toolbar select { font-size:12px; padding:4px 6px; border:1px solid #d1d5db; border-radius:4px; background:#fff; color:#374151; cursor:pointer; outline:none; max-width:110px; }
+    .dnd-inline-toolbar select:focus { border-color:#6366f1; box-shadow:0 0 0 2px rgba(99,102,241,0.15); }
+    .itb-btn { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border:1px solid transparent; border-radius:4px; background:transparent; cursor:pointer; color:#4b5563; font-size:13px; transition:all .12s; }
+    .itb-btn:hover { background:#f3f4f6; color:#111827; }
+    .itb-btn.active { background:#eef2ff; color:#4f46e5; border-color:#c7d2fe; }
+    .itb-sep { width:1px; height:24px; background:#e5e7eb; margin:0 4px; flex-shrink:0; }
+    .itb-color-pick { width:28px; height:28px; border:1px solid #d1d5db; border-radius:4px; padding:1px; cursor:pointer; background:transparent; }
+    .itb-size-group { display:flex; align-items:center; gap:2px; font-size:12px; color:#374151; }
+    .itb-size-group span { min-width:22px; text-align:center; font-weight:600; }
+    .itb-size-group .itb-btn { width:24px; height:24px; font-size:14px; font-weight:bold; }
+
+    /* Contenteditable block styling */
+    .dnd-block .inline-editable { outline:none; cursor:text; }
+    .dnd-block .inline-editable:focus { box-shadow:inset 0 0 0 2px rgba(99,102,241,0.3); border-radius:2px; }
 
     /* Editor blocks */
     .dnd-block { position:relative; border:2px solid transparent; transition:border-color .15s, box-shadow .15s; cursor:pointer; }
@@ -424,7 +434,7 @@
                   </div>
                   <div class="mt-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">HTML Body</label>
-                    <div id="email-html-editor" style="height: 250px;"></div>
+                    <textarea id="email-html" rows="6" placeholder="<h1>Hello</h1><p>Your email content...</p>" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none font-mono"></textarea>
                   </div>
                   <div class="mt-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Plain Text (optional)</label>
@@ -1306,6 +1316,57 @@
                   <button onclick="exportEditorHtml()" class="dnd-toolbar-btn text-xs gap-1 px-2"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg> HTML</button>
                   <button onclick="saveEditorAsTemplate()" class="bg-primary-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-primary-700 transition-colors flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg> Save Template</button>
                 </div>
+              </div>
+              <!-- Inline Text Editing Toolbar -->
+              <div id="inline-text-toolbar" class="dnd-inline-toolbar" style="display:none;">
+                <select id="itb-font" onchange="inlineExecFont(this.value)" title="Font Family">
+                  <option value="Helvetica,Arial,sans-serif">Sans Serif</option>
+                  <option value="Georgia,serif">Serif</option>
+                  <option value="'Courier New',monospace">Monospace</option>
+                  <option value="Verdana,sans-serif">Verdana</option>
+                  <option value="Tahoma,sans-serif">Tahoma</option>
+                </select>
+                <select id="itb-heading" onchange="inlineExecHeading(this.value)" title="Heading">
+                  <option value="p">Normal</option>
+                  <option value="H1">H1</option>
+                  <option value="H2">H2</option>
+                  <option value="H3">H3</option>
+                  <option value="H4">H4</option>
+                </select>
+                <div class="itb-size-group">
+                  <button onclick="inlineChangeFontSize(-1)" class="itb-btn" title="Decrease size">−</button>
+                  <span id="itb-font-size">16</span>
+                  <button onclick="inlineChangeFontSize(1)" class="itb-btn" title="Increase size">+</button>
+                </div>
+                <div class="itb-sep"></div>
+                <input type="color" id="itb-text-color" value="#333333" onchange="inlineExecColor(this.value)" title="Text Color" class="itb-color-pick">
+                <button onclick="inlineExec('bold')" class="itb-btn" title="Bold" id="itb-bold"><b>B</b></button>
+                <button onclick="inlineExec('italic')" class="itb-btn" title="Italic" id="itb-italic"><i>I</i></button>
+                <button onclick="inlineExec('underline')" class="itb-btn" title="Underline" id="itb-underline"><u>U</u></button>
+                <button onclick="inlineExec('strikeThrough')" class="itb-btn" title="Strikethrough" id="itb-strike"><s>S</s></button>
+                <div class="itb-sep"></div>
+                <button onclick="inlineExecLink()" class="itb-btn" title="Insert Link">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                </button>
+                <button onclick="inlineExec('removeFormat')" class="itb-btn" title="Clear Formatting">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+                <div class="itb-sep"></div>
+                <button onclick="inlineExec('insertUnorderedList')" class="itb-btn" title="Bullet List">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                </button>
+                <button onclick="inlineExec('insertOrderedList')" class="itb-btn" title="Numbered List">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M10 6h11M10 12h11M10 18h11"/><text x="2" y="8" font-size="7" fill="currentColor" stroke="none" font-weight="600">1</text><text x="2" y="14" font-size="7" fill="currentColor" stroke="none" font-weight="600">2</text><text x="2" y="20" font-size="7" fill="currentColor" stroke="none" font-weight="600">3</text></svg>
+                </button>
+                <button onclick="inlineExec('justifyLeft')" class="itb-btn" title="Align Left">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M3 6h18M3 12h12M3 18h16"/></svg>
+                </button>
+                <button onclick="inlineExec('justifyCenter')" class="itb-btn" title="Align Center">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M3 6h18M6 12h12M4 18h16"/></svg>
+                </button>
+                <button onclick="inlineExec('justifyRight')" class="itb-btn" title="Align Right">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M3 6h18M9 12h12M5 18h16"/></svg>
+                </button>
               </div>
               <!-- Canvas -->
               <div class="dnd-canvas-scroll">

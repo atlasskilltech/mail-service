@@ -382,6 +382,7 @@ function renderCanvas() {
       document.querySelectorAll('.dnd-block').forEach(b => b.classList.remove('selected'));
       el.classList.add('selected');
       renderPropsPanel();
+      enableInlineEditing(el, block);
     });
     // Drag reorder
     el.addEventListener('dragstart', (e) => {
@@ -462,12 +463,12 @@ function renderBlockHtml(block) {
   switch (block.type) {
     case 'header':
       return `<div style="background:${p.bgColor||'#667eea'};padding:${p.padding||32}px;text-align:${p.align||'center'};">
-        <div style="color:${p.textColor||'#fff'};font-size:${p.fontSize||24}px;font-weight:${p.fontWeight||'bold'};font-family:Helvetica,Arial,sans-serif;">${block.content}</div>
+        <div class="inline-editable" data-editable="true" style="color:${p.textColor||'#fff'};font-size:${p.fontSize||24}px;font-weight:${p.fontWeight||'bold'};font-family:Helvetica,Arial,sans-serif;">${block.content}</div>
       </div>`;
 
     case 'text':
       return `<div style="padding:${p.padding||16}px;text-align:${p.align||'left'};">
-        <div style="color:${p.textColor||'#51545e'};font-size:${p.fontSize||16}px;line-height:${p.lineHeight||'1.6'};font-family:Helvetica,Arial,sans-serif;">${block.content}</div>
+        <div class="inline-editable" data-editable="true" style="color:${p.textColor||'#51545e'};font-size:${p.fontSize||16}px;line-height:${p.lineHeight||'1.6'};font-family:Helvetica,Arial,sans-serif;">${block.content}</div>
       </div>`;
 
     case 'image':
@@ -516,7 +517,7 @@ function renderBlockHtml(block) {
 
     case 'footer':
       return `<div style="background:${p.bgColor||'#f8f9fc'};padding:${p.padding||24}px;text-align:${p.align||'center'};">
-        <div style="color:${p.textColor||'#9ca3af'};font-size:${p.fontSize||12}px;line-height:1.5;font-family:Helvetica,Arial,sans-serif;">${block.content}</div>
+        <div class="inline-editable" data-editable="true" style="color:${p.textColor||'#9ca3af'};font-size:${p.fontSize||12}px;line-height:1.5;font-family:Helvetica,Arial,sans-serif;">${block.content}</div>
       </div>`;
 
     case 'html':
@@ -1052,7 +1053,12 @@ function updateBlockContent(el) {
   const block = editorBlocks.find(b => b.id === selectedBlockId);
   if (!block) return;
   block.content = el.value;
-  rerenderBlock(block.id);
+  // Update inline editable if active (from props panel textarea)
+  if (activeEditableEl) {
+    activeEditableEl.innerHTML = el.value;
+  } else {
+    rerenderBlock(block.id);
+  }
 }
 
 function updateBlockProp(el) {
@@ -1221,8 +1227,13 @@ function rerenderBlock(id) {
   const el = document.querySelector(`[data-block-id="${id}"]`);
   const block = editorBlocks.find(b => b.id === id);
   if (el && block) {
+    const wasEditing = activeEditableEl && el.contains(activeEditableEl);
     const idx = el.dataset.idx;
     el.innerHTML = renderBlockHtml(block) + renderBlockActions(id, idx);
+    // Re-enable inline editing if it was active
+    if (wasEditing && id === selectedBlockId) {
+      enableInlineEditing(el, block);
+    }
   }
 }
 
@@ -1411,6 +1422,164 @@ async function submitSaveTemplate(e) {
     btn.textContent = 'Save Template';
   }
 }
+
+// ---- Inline Rich Text Editing ----
+let activeEditableEl = null;
+
+function enableInlineEditing(blockEl, block) {
+  // Disable previous inline editing
+  disableAllInlineEditing();
+
+  const editable = blockEl.querySelector('[data-editable="true"]');
+  const toolbar = document.getElementById('inline-text-toolbar');
+
+  if (!editable || !toolbar) {
+    toolbar && (toolbar.style.display = 'none');
+    return;
+  }
+
+  // Enable contenteditable
+  editable.contentEditable = 'true';
+  editable.classList.add('inline-editable-active');
+  activeEditableEl = editable;
+
+  // Show toolbar
+  toolbar.style.display = 'flex';
+
+  // Set font size display
+  const fontSize = block.props?.fontSize || (block.type === 'header' ? 24 : block.type === 'footer' ? 12 : 16);
+  document.getElementById('itb-font-size').textContent = fontSize;
+
+  // Listen for content changes
+  editable.addEventListener('input', onInlineContentChange);
+  editable.addEventListener('keyup', updateToolbarState);
+  editable.addEventListener('mouseup', updateToolbarState);
+}
+
+function disableAllInlineEditing() {
+  if (activeEditableEl) {
+    // Save content before disabling
+    syncInlineContent();
+    activeEditableEl.contentEditable = 'false';
+    activeEditableEl.classList.remove('inline-editable-active');
+    activeEditableEl.removeEventListener('input', onInlineContentChange);
+    activeEditableEl.removeEventListener('keyup', updateToolbarState);
+    activeEditableEl.removeEventListener('mouseup', updateToolbarState);
+    activeEditableEl = null;
+  }
+}
+
+function onInlineContentChange() {
+  syncInlineContent();
+}
+
+function syncInlineContent() {
+  if (!activeEditableEl || !selectedBlockId) return;
+  const block = editorBlocks.find(b => b.id === selectedBlockId);
+  if (!block) return;
+  block.content = activeEditableEl.innerHTML;
+  // Sync with properties panel textarea/input
+  const contentField = document.querySelector('#props-panel [data-prop="content"]');
+  if (contentField) {
+    contentField.value = block.content;
+  }
+}
+
+function updateToolbarState() {
+  const cmds = ['bold', 'italic', 'underline', 'strikeThrough'];
+  const ids = ['itb-bold', 'itb-italic', 'itb-underline', 'itb-strike'];
+  cmds.forEach((cmd, i) => {
+    const btn = document.getElementById(ids[i]);
+    if (btn) {
+      btn.classList.toggle('active', document.queryCommandState(cmd));
+    }
+  });
+}
+
+function inlineExec(command) {
+  if (!activeEditableEl) return;
+  activeEditableEl.focus();
+  document.execCommand(command, false, null);
+  syncInlineContent();
+  updateToolbarState();
+}
+
+function inlineExecColor(color) {
+  if (!activeEditableEl) return;
+  activeEditableEl.focus();
+  document.execCommand('foreColor', false, color);
+  syncInlineContent();
+}
+
+function inlineExecFont(font) {
+  if (!activeEditableEl) return;
+  activeEditableEl.focus();
+  // Use a temp font name, then replace with actual font-family via style
+  document.execCommand('fontName', false, font);
+  syncInlineContent();
+}
+
+function inlineExecHeading(tag) {
+  if (!activeEditableEl) return;
+  activeEditableEl.focus();
+  if (tag === 'p') {
+    document.execCommand('formatBlock', false, 'p');
+  } else {
+    document.execCommand('formatBlock', false, tag);
+  }
+  syncInlineContent();
+}
+
+function inlineChangeFontSize(delta) {
+  if (!activeEditableEl) return;
+  const sizeEl = document.getElementById('itb-font-size');
+  let size = parseInt(sizeEl.textContent) || 16;
+  size = Math.max(8, Math.min(72, size + delta));
+  sizeEl.textContent = size;
+
+  // Update the block props
+  const block = editorBlocks.find(b => b.id === selectedBlockId);
+  if (block) {
+    block.props.fontSize = String(size);
+    // Update the editable element's font size
+    activeEditableEl.style.fontSize = size + 'px';
+    // Sync props panel range input
+    const rangeEl = document.querySelector('#props-panel [data-prop="fontSize"]');
+    if (rangeEl) {
+      rangeEl.value = size;
+      const valSpan = rangeEl.parentElement.querySelector('.prop-range-val');
+      if (valSpan) valSpan.textContent = size;
+    }
+  }
+}
+
+function inlineExecLink() {
+  if (!activeEditableEl) return;
+  const sel = window.getSelection();
+  if (!sel.rangeCount || sel.isCollapsed) {
+    showToast('Select some text first to add a link', 'warning');
+    return;
+  }
+  const url = prompt('Enter URL:', 'https://');
+  if (url) {
+    document.execCommand('createLink', false, url);
+    syncInlineContent();
+  }
+}
+
+// Hide toolbar when clicking outside blocks
+document.addEventListener('click', function(e) {
+  const toolbar = document.getElementById('inline-text-toolbar');
+  if (!toolbar) return;
+  const inEditor = e.target.closest('.dnd-block') || e.target.closest('.dnd-inline-toolbar');
+  if (!inEditor) {
+    disableAllInlineEditing();
+    toolbar.style.display = 'none';
+  }
+});
+
+// Override rerenderBlock to preserve inline editing state
+const _origRerenderBlock = typeof rerenderBlock === 'function' ? rerenderBlock : null;
 
 // ---- escapeHtml fallback (if not already defined) ----
 if (typeof escapeHtml !== 'function') {
