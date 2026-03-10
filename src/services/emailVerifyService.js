@@ -8,13 +8,29 @@ const DISPOSABLE_DOMAINS = new Set([
   'mailinator.com', 'guerrillamail.com', 'tempmail.com', 'throwaway.email',
   'yopmail.com', 'sharklasers.com', 'guerrillamailblock.com', 'grr.la',
   'dispostable.com', 'trashmail.com', 'fakeinbox.com', 'maildrop.cc',
-  'temp-mail.org', 'getairmail.com', 'mohmal.com'
+  'temp-mail.org', 'getairmail.com', 'mohmal.com', 'tempinbox.com',
+  'guerrillamail.info', 'throwaway.com', 'mailnesia.com', 'mailcatch.com',
+  'tempmailaddress.com', 'mintemail.com', 'binkmail.com', 'spamgourmet.com'
+]);
+
+// Common free email providers
+const FREE_EMAIL_DOMAINS = new Set([
+  'gmail.com', 'yahoo.com', 'yahoo.co.in', 'yahoo.co.uk', 'yahoo.fr', 'yahoo.de',
+  'outlook.com', 'hotmail.com', 'hotmail.co.uk', 'live.com', 'live.in',
+  'msn.com', 'aol.com', 'icloud.com', 'me.com', 'mac.com',
+  'protonmail.com', 'proton.me', 'zoho.com', 'zohomail.in',
+  'mail.com', 'gmx.com', 'gmx.net', 'yandex.com', 'yandex.ru',
+  'tutanota.com', 'tuta.io', 'fastmail.com',
+  'rediffmail.com', 'in.com', 'sify.com',
+  'mail.ru', 'inbox.com', 'email.com', 'usa.com',
+  'rocketmail.com', 'att.net', 'comcast.net', 'verizon.net',
+  'sbcglobal.net', 'cox.net', 'charter.net', 'earthlink.net'
 ]);
 
 class EmailVerifyService {
   /**
    * Verify a single email address
-   * Returns: { email, valid, reason, details: { format, domain, mx, disposable } }
+   * Returns: { email, valid, reason, details: { format, domain, mx, disposable, free } }
    */
   async verifyEmail(email) {
     const result = {
@@ -25,7 +41,8 @@ class EmailVerifyService {
         format: false,
         domain: false,
         mx: false,
-        disposable: false
+        disposable: false,
+        free: false
       }
     };
 
@@ -54,7 +71,10 @@ class EmailVerifyService {
       return result;
     }
 
-    // 4. DNS / MX check
+    // 4. Free vs Paid (business) detection
+    result.details.free = FREE_EMAIL_DOMAINS.has(domain);
+
+    // 5. DNS / MX check
     try {
       const mxRecords = await this.lookupMX(domain);
       if (mxRecords && mxRecords.length > 0) {
@@ -90,10 +110,14 @@ class EmailVerifyService {
       const result = await this.verifyEmail(email);
       results.push(result);
     }
+
+    const valid = results.filter(r => r.valid);
     return {
       total: results.length,
-      valid: results.filter(r => r.valid).length,
+      valid: valid.length,
       invalid: results.filter(r => !r.valid).length,
+      free: valid.filter(r => r.details.free).length,
+      business: valid.filter(r => !r.details.free).length,
       results
     };
   }

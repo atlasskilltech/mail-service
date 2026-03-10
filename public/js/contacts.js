@@ -123,7 +123,12 @@ function openAddContactModal(contact) {
     <form onsubmit="submitContact(event,${isEdit ? contact.id : 'null'})" class="p-6 space-y-4">
       <div class="grid grid-cols-2 gap-4">
         <div><label class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
-          <input type="email" id="c-email" required value="${isEdit ? escapeHtml(contact.email) : ''}" ${isEdit ? 'readonly class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50"' : 'class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"'}></div>
+          <div class="flex gap-2">
+            <input type="email" id="c-email" required value="${isEdit ? escapeHtml(contact.email) : ''}" ${isEdit ? 'readonly class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50"' : 'class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"'}>
+            ${!isEdit ? '<button type="button" onclick="verifyContactEmail()" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-blue-700 whitespace-nowrap">Verify</button>' : ''}
+          </div>
+          <div id="c-email-verify-result" class="mt-1"></div>
+        </div>
         <div><label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
           <input type="text" id="c-phone" value="${isEdit ? escapeHtml(contact.phone || '') : ''}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"></div>
       </div>
@@ -154,6 +159,29 @@ function openAddContactModal(contact) {
     </form>
   </div>`;
   document.body.appendChild(modal);
+}
+
+async function verifyContactEmail() {
+  const email = document.getElementById('c-email').value.trim();
+  if (!email) return;
+  if (!getApiKey()) return showToast('Please enter your API key', 'error');
+
+  const resultDiv = document.getElementById('c-email-verify-result');
+  resultDiv.innerHTML = '<span class="text-xs text-gray-500">Verifying...</span>';
+
+  try {
+    const r = await api('POST', '/email/verify', { email });
+    const icon = r.valid
+      ? '<svg class="w-3.5 h-3.5 text-green-500 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'
+      : '<svg class="w-3.5 h-3.5 text-red-500 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+    const color = r.valid ? 'text-green-700' : 'text-red-700';
+    const typeBadge = r.valid ? (r.details.free
+      ? '<span class="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full">Free</span>'
+      : '<span class="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full">Business</span>') : '';
+    resultDiv.innerHTML = `<div class="flex items-center gap-1.5">${icon} <span class="text-xs ${color}">${escapeHtml(r.reason)}</span> ${typeBadge}</div>`;
+  } catch (err) {
+    resultDiv.innerHTML = `<span class="text-xs text-red-600">${escapeHtml(err.message)}</span>`;
+  }
 }
 
 async function submitContact(e, id) {
@@ -231,6 +259,12 @@ function openImportModal() {
           <option value="">No list</option>
         </select>
       </div>
+      <div class="flex items-center gap-2 bg-blue-50 rounded-lg p-3">
+        <input type="checkbox" id="import-verify" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+        <label for="import-verify" class="text-sm text-blue-800 font-medium">Verify emails before importing</label>
+        <span class="text-xs text-blue-600 ml-auto">(Checks MX, domain, free/business)</span>
+      </div>
+      <div id="import-verify-results" class="hidden"></div>
       <div class="flex gap-3 justify-end pt-2">
         <button type="button" onclick="this.closest('.fixed').remove()" class="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">Cancel</button>
         <button type="submit" id="import-btn" class="px-4 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700">Import</button>
@@ -257,17 +291,19 @@ async function submitCsvImport(e) {
   e.preventDefault();
   const fileInput = document.getElementById('csv-file');
   const listId = document.getElementById('import-list-id').value;
+  const verify = document.getElementById('import-verify').checked;
   const btn = document.getElementById('import-btn');
 
   if (!fileInput.files[0]) return showToast('Select a CSV file', 'error');
 
   btn.disabled = true;
-  btn.textContent = 'Importing...';
+  btn.textContent = verify ? 'Verifying & Importing...' : 'Importing...';
 
   try {
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
     if (listId) formData.append('listId', listId);
+    if (verify) formData.append('verify', 'true');
 
     const headers = {};
     const apiKey = getApiKey();
@@ -277,7 +313,33 @@ async function submitCsvImport(e) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Import failed');
 
-    showToast(`Imported ${data.imported} contacts (${data.skipped} skipped)`);
+    let msg = `Imported ${data.imported} contacts (${data.skipped} skipped)`;
+    if (data.verification) {
+      msg += ` | Verified: ${data.verification.valid} valid, ${data.verification.invalid} invalid`;
+      if (data.verification.skippedInvalid > 0) {
+        msg += ` (${data.verification.skippedInvalid} invalid emails excluded)`;
+      }
+      // Show verification details
+      const resultsDiv = document.getElementById('import-verify-results');
+      resultsDiv.classList.remove('hidden');
+      resultsDiv.innerHTML = `
+        <div class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm space-y-1">
+          <p class="font-medium text-blue-900">Verification Results:</p>
+          <div class="flex gap-4 text-xs">
+            <span class="text-green-700">Valid: ${data.verification.valid}</span>
+            <span class="text-red-700">Invalid: ${data.verification.invalid}</span>
+            <span class="text-blue-700">Free: ${data.verification.free}</span>
+            <span class="text-purple-700">Business: ${data.verification.business}</span>
+          </div>
+          ${data.verification.skippedInvalid > 0 ? `<p class="text-xs text-orange-700">${data.verification.skippedInvalid} invalid emails were excluded from import</p>` : ''}
+        </div>`;
+      btn.textContent = 'Done!';
+      showToast(msg, 'success');
+      loadContacts();
+      return;
+    }
+
+    showToast(msg, 'success');
     document.getElementById('import-modal').remove();
     loadContacts();
   } catch (err) {

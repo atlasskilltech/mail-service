@@ -152,6 +152,7 @@ const pageTitles = {
   'templates': 'Templates',
   'bounces': 'Bounces',
   'suppression': 'Suppression List',
+  'email-verify': 'Email Verify',
   'api-keys': 'API Keys',
   'webhooks': 'Webhooks',
   'api-docs': 'API Documentation',
@@ -322,6 +323,29 @@ function formatUptime(seconds) {
 }
 
 // Email Verification
+// Helper: render a single verify result row (used in send email page)
+function renderVerifyBadge(r) {
+  const icon = r.valid
+    ? '<svg class="w-4 h-4 text-green-500 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'
+    : '<svg class="w-4 h-4 text-red-500 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+  const bg = r.valid ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
+  const textColor = r.valid ? 'text-green-700' : 'text-red-700';
+  const details = [];
+  if (r.details) {
+    if (r.details.format) details.push('Format OK');
+    if (r.details.mx) details.push('MX OK');
+    if (r.details.domain) details.push('Domain OK');
+    if (r.details.disposable) details.push('Disposable');
+    if (r.valid) details.push(r.details.free ? 'Free' : 'Business');
+  }
+  return `<div class="flex items-center gap-2 px-3 py-2 rounded-lg border ${bg}">
+    ${icon}
+    <span class="text-sm font-medium ${textColor}">${escapeHtml(r.email)}</span>
+    <span class="text-xs ${textColor}">${escapeHtml(r.reason)}</span>
+    ${details.length ? `<span class="text-xs text-gray-500 ml-auto">${details.join(' | ')}</span>` : ''}
+  </div>`;
+}
+
 async function verifyEmails() {
   const toVal = document.getElementById('email-to').value.trim();
   if (!toVal) return showToast('Enter email address(es) to verify', 'warning');
@@ -342,30 +366,179 @@ async function verifyEmails() {
       const data = await api('POST', '/email/verify', { email: emails[0] });
       results = [data];
     }
-
-    resultsDiv.innerHTML = results.map(r => {
-      const icon = r.valid
-        ? '<svg class="w-4 h-4 text-green-500 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'
-        : '<svg class="w-4 h-4 text-red-500 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
-      const bg = r.valid ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
-      const textColor = r.valid ? 'text-green-700' : 'text-red-700';
-      const details = [];
-      if (r.details) {
-        if (r.details.format) details.push('Format OK');
-        if (r.details.mx) details.push('MX OK');
-        if (r.details.domain) details.push('Domain OK');
-        if (r.details.disposable) details.push('Disposable');
-      }
-      return `<div class="flex items-center gap-2 px-3 py-2 rounded-lg border ${bg}">
-        ${icon}
-        <span class="text-sm font-medium ${textColor}">${escapeHtml(r.email)}</span>
-        <span class="text-xs ${textColor}">${escapeHtml(r.reason)}</span>
-        ${details.length ? `<span class="text-xs text-gray-500 ml-auto">${details.join(' | ')}</span>` : ''}
-      </div>`;
-    }).join('');
+    resultsDiv.innerHTML = results.map(r => renderVerifyBadge(r)).join('');
   } catch (err) {
     resultsDiv.innerHTML = `<p class="text-xs text-red-600">${escapeHtml(err.message)}</p>`;
   }
+}
+
+// ---- Email Verify Page ----
+let _verifyResults = [];
+
+function emailTypeBadge(r) {
+  if (!r.valid) return '<span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">-</span>';
+  if (r.details.free) return '<span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Free</span>';
+  return '<span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">Business</span>';
+}
+
+function checkBadge(val) {
+  return val
+    ? '<svg class="w-4 h-4 text-green-500 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'
+    : '<svg class="w-4 h-4 text-red-400 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+}
+
+async function verifySingleEmail() {
+  const email = document.getElementById('verify-single-email').value.trim();
+  if (!email) return showToast('Enter an email address', 'warning');
+  if (!getApiKey()) return showToast('Please enter your API key', 'error');
+
+  const resultDiv = document.getElementById('single-verify-result');
+  resultDiv.classList.remove('hidden');
+  resultDiv.innerHTML = '<p class="text-sm text-gray-500">Verifying...</p>';
+
+  try {
+    const r = await api('POST', '/email/verify', { email });
+    const bg = r.valid ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50';
+    resultDiv.innerHTML = `
+      <div class="rounded-lg border ${bg} p-4">
+        <div class="flex items-center gap-3 mb-3">
+          ${r.valid
+            ? '<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'
+            : '<svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'}
+          <div>
+            <p class="font-semibold text-gray-900">${escapeHtml(r.email)}</p>
+            <p class="text-sm ${r.valid ? 'text-green-700' : 'text-red-700'}">${escapeHtml(r.reason)}</p>
+          </div>
+          ${emailTypeBadge(r)}
+        </div>
+        <div class="grid grid-cols-4 gap-3 text-center">
+          <div class="bg-white rounded-lg p-2 border border-gray-100">
+            <p class="text-xs text-gray-500 mb-1">Format</p>
+            ${checkBadge(r.details.format)}
+          </div>
+          <div class="bg-white rounded-lg p-2 border border-gray-100">
+            <p class="text-xs text-gray-500 mb-1">Domain</p>
+            ${checkBadge(r.details.domain)}
+          </div>
+          <div class="bg-white rounded-lg p-2 border border-gray-100">
+            <p class="text-xs text-gray-500 mb-1">MX Record</p>
+            ${checkBadge(r.details.mx)}
+          </div>
+          <div class="bg-white rounded-lg p-2 border border-gray-100">
+            <p class="text-xs text-gray-500 mb-1">Type</p>
+            <span class="text-xs font-medium ${r.details.free ? 'text-blue-600' : 'text-purple-600'}">${r.details.disposable ? 'Disposable' : (r.details.free ? 'Free' : 'Business')}</span>
+          </div>
+        </div>
+      </div>`;
+  } catch (err) {
+    resultDiv.innerHTML = `<p class="text-sm text-red-600">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function switchVerifyTab(tab) {
+  document.getElementById('verify-text-input').classList.toggle('hidden', tab !== 'text');
+  document.getElementById('verify-file-input').classList.toggle('hidden', tab !== 'file');
+  document.getElementById('verify-tab-text').className = `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'text' ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`;
+  document.getElementById('verify-tab-file').className = `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'file' ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`;
+}
+
+async function verifyBulkEmails() {
+  if (!getApiKey()) return showToast('Please enter your API key', 'error');
+
+  let emails = [];
+  const isFileMode = !document.getElementById('verify-file-input').classList.contains('hidden');
+
+  if (isFileMode) {
+    const fileInput = document.getElementById('verify-csv-file');
+    if (!fileInput.files[0]) return showToast('Select a file', 'error');
+    const text = await fileInput.files[0].text();
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    // Check if first line is a header
+    const firstLine = lines[0].toLowerCase();
+    const startIdx = (firstLine === 'email' || firstLine.includes('email,') || firstLine.includes(',email')) ? 1 : 0;
+    for (let i = startIdx; i < lines.length; i++) {
+      const parts = lines[i].split(',').map(p => p.trim().replace(/^["']|["']$/g, ''));
+      // Take first email-like value
+      const emailVal = parts.find(p => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p));
+      if (emailVal) emails.push(emailVal);
+    }
+  } else {
+    const text = document.getElementById('verify-bulk-textarea').value.trim();
+    if (!text) return showToast('Enter emails to verify', 'warning');
+    emails = text.split(/[\n,]+/).map(e => e.trim()).filter(e => e && e.includes('@'));
+  }
+
+  if (emails.length === 0) return showToast('No valid emails found', 'error');
+  if (emails.length > 50) return showToast('Maximum 50 emails per request', 'error');
+
+  showToast(`Verifying ${emails.length} emails...`, 'info');
+
+  try {
+    const data = await api('POST', '/email/verify', { emails });
+    _verifyResults = data.results;
+
+    document.getElementById('bulk-verify-results').classList.remove('hidden');
+    document.getElementById('bv-total').textContent = data.total;
+    document.getElementById('bv-valid').textContent = data.valid;
+    document.getElementById('bv-invalid').textContent = data.invalid;
+    document.getElementById('bv-free').textContent = data.free;
+    document.getElementById('bv-business').textContent = data.business;
+
+    renderVerifyTable(_verifyResults);
+    showToast(`Verification complete: ${data.valid} valid, ${data.invalid} invalid`, 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function renderVerifyTable(results) {
+  const tbody = document.getElementById('bulk-verify-table-body');
+  if (!results.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-sm text-gray-500">No results</td></tr>';
+    return;
+  }
+  tbody.innerHTML = results.map(r => `
+    <tr class="hover:bg-gray-50 transition-colors">
+      <td class="px-4 py-2.5 text-sm font-mono text-gray-900">${escapeHtml(r.email)}</td>
+      <td class="px-4 py-2.5">${r.valid
+        ? '<span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Valid</span>'
+        : '<span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Invalid</span>'}</td>
+      <td class="px-4 py-2.5">${emailTypeBadge(r)}</td>
+      <td class="px-4 py-2.5 text-center">${checkBadge(r.details.mx)}</td>
+      <td class="px-4 py-2.5 text-center">${checkBadge(r.details.domain)}</td>
+      <td class="px-4 py-2.5 text-xs text-gray-600">${escapeHtml(r.reason)}</td>
+    </tr>
+  `).join('');
+}
+
+function filterVerifyResults(filter) {
+  document.querySelectorAll('.verify-filter-btn').forEach(b => {
+    b.className = 'verify-filter-btn text-xs px-3 py-1 rounded-full font-medium bg-gray-100 text-gray-600';
+  });
+  event.target.className = 'verify-filter-btn text-xs px-3 py-1 rounded-full font-medium bg-gray-200 text-gray-700';
+
+  let filtered = _verifyResults;
+  if (filter === 'valid') filtered = _verifyResults.filter(r => r.valid);
+  else if (filter === 'invalid') filtered = _verifyResults.filter(r => !r.valid);
+  else if (filter === 'free') filtered = _verifyResults.filter(r => r.valid && r.details.free);
+  else if (filter === 'business') filtered = _verifyResults.filter(r => r.valid && !r.details.free);
+  renderVerifyTable(filtered);
+}
+
+function exportVerifyResults() {
+  if (!_verifyResults.length) return showToast('No results to export', 'warning');
+  const csv = 'email,valid,type,mx,domain,reason\n' +
+    _verifyResults.map(r =>
+      `"${r.email}",${r.valid},${r.valid ? (r.details.free ? 'free' : 'business') : 'n/a'},${r.details.mx},${r.details.domain},"${r.reason}"`
+    ).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'email_verification_results.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Results exported as CSV');
 }
 
 // Send Email

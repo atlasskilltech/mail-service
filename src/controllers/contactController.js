@@ -1,5 +1,6 @@
 const Contact = require('../models/contact');
 const ContactList = require('../models/contactList');
+const emailVerifyService = require('../services/emailVerifyService');
 
 // --- Contacts CRUD ---
 exports.listContacts = async (req, res) => {
@@ -124,18 +125,45 @@ exports.csvImport = async (req, res) => {
       });
     }
 
-    const result = await Contact.bulkCreate(contacts, 'csv_import');
+    // Verify emails if requested
+    const shouldVerify = req.body.verify === 'true' || req.body.verify === true;
+    let verifyResults = null;
+    let validContacts = contacts;
+
+    if (shouldVerify) {
+      const emails = contacts.map(c => c.email);
+      verifyResults = await emailVerifyService.verifyEmails(emails);
+      validContacts = contacts.filter(c => {
+        const vr = verifyResults.results.find(r => r.email === c.email.trim().toLowerCase());
+        return vr && vr.valid;
+      });
+    }
+
+    const result = await Contact.bulkCreate(validContacts, 'csv_import');
 
     if (req.body.listId) {
       const db = require('../config/database');
-      const emails = contacts.map(c => c.email);
-      const [rows] = await db.execute(
-        `SELECT id FROM contacts WHERE email IN (${emails.map(() => '?').join(',')})`, emails
-      );
-      if (rows.length) await ContactList.addMembers(parseInt(req.body.listId), rows.map(r => r.id));
+      const emails = validContacts.map(c => c.email);
+      if (emails.length) {
+        const [rows] = await db.execute(
+          `SELECT id FROM contacts WHERE email IN (${emails.map(() => '?').join(',')})`, emails
+        );
+        if (rows.length) await ContactList.addMembers(parseInt(req.body.listId), rows.map(r => r.id));
+      }
     }
 
-    res.status(201).json({ ...result, total: contacts.length });
+    const response = { ...result, total: contacts.length };
+    if (verifyResults) {
+      response.verification = {
+        total: verifyResults.total,
+        valid: verifyResults.valid,
+        invalid: verifyResults.invalid,
+        free: verifyResults.free,
+        business: verifyResults.business,
+        skippedInvalid: contacts.length - validContacts.length
+      };
+    }
+    res.status(201).json(response);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
