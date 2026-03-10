@@ -64,10 +64,10 @@ class EmailWorker {
       return;
     }
 
-    const { logId, to, subject, html, text, from, replyTo } = emailData;
+    const { logId, to, subject, html, text, from, replyTo, cc, bcc } = emailData;
 
     try {
-      const messageId = await sesService.sendEmail({ to, subject, html, text, from, replyTo });
+      const messageId = await sesService.sendEmail({ to, subject, html, text, from, replyTo, cc, bcc });
 
       if (logId) {
         await EmailLog.updateStatus(logId, 'sent', { messageId });

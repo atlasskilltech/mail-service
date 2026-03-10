@@ -5,8 +5,8 @@ const logger = require('../utils/logger');
 class EmailController {
   async sendEmail(req, res) {
     try {
-      const { to, subject, template, data, html, text, from, replyTo } = req.body;
-      const result = await emailService.sendEmail({ to, subject, template, data, html, text, from, replyTo });
+      const { to, subject, template, data, html, text, from, replyTo, cc, bcc } = req.body;
+      const result = await emailService.sendEmail({ to, subject, template, data, html, text, from, replyTo, cc, bcc });
       res.status(202).json(result);
     } catch (error) {
       logger.error('Send email error:', error);
@@ -27,8 +27,8 @@ class EmailController {
 
   async sendTemplateEmail(req, res) {
     try {
-      const { to, template, data, from, replyTo } = req.body;
-      const result = await emailService.sendTemplateEmail({ to, template, data, from, replyTo });
+      const { to, template, data, from, replyTo, cc, bcc } = req.body;
+      const result = await emailService.sendTemplateEmail({ to, template, data, from, replyTo, cc, bcc });
       res.status(202).json(result);
     } catch (error) {
       logger.error('Template email error:', error);

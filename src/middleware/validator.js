@@ -6,7 +6,7 @@ function validateEmail(email) {
 }
 
 function validateSendEmail(req, res, next) {
-  const { to, subject, template, html, text, from, replyTo } = req.body;
+  const { to, subject, template, html, text, from, replyTo, cc, bcc } = req.body;
 
   const errors = [];
 
@@ -33,6 +33,22 @@ function validateSendEmail(req, res, next) {
     const invalidReply = replyAddresses.filter((e) => !validateEmail(e));
     if (invalidReply.length > 0) {
       errors.push(`Invalid replyTo email addresses: ${invalidReply.join(', ')}`);
+    }
+  }
+
+  if (cc) {
+    const ccAddresses = Array.isArray(cc) ? cc : [cc];
+    const invalidCc = ccAddresses.filter((e) => !validateEmail(e));
+    if (invalidCc.length > 0) {
+      errors.push(`Invalid CC email addresses: ${invalidCc.join(', ')}`);
+    }
+  }
+
+  if (bcc) {
+    const bccAddresses = Array.isArray(bcc) ? bcc : [bcc];
+    const invalidBcc = bccAddresses.filter((e) => !validateEmail(e));
+    if (invalidBcc.length > 0) {
+      errors.push(`Invalid BCC email addresses: ${invalidBcc.join(', ')}`);
     }
   }
 
