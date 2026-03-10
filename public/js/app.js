@@ -213,6 +213,7 @@ function showPage(page) {
   if (page === 'campaigns') loadCampaigns();
   if (page === 'automations') loadAutomations();
   if (page === 'campaign-create') initCampaignCreateForm();
+  if (page === 'send-email') initQuillEditor();
 }
 
 // Status badge helper
@@ -1728,5 +1729,4 @@ function clearQuillEditor() {
 // Initialize
 window.addEventListener('DOMContentLoaded', () => {
   loadDashboard();
-  initQuillEditor();
 });
