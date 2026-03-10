@@ -242,7 +242,7 @@ function openImportModal() {
   modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
   modal.id = 'import-modal';
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-  modal.innerHTML = `<div class="bg-white rounded-2xl w-full max-w-lg">
+  modal.innerHTML = `<div id="import-modal-inner" class="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transition-all">
     <div class="p-6 border-b border-gray-200">
       <h3 class="text-lg font-semibold text-gray-900">Import Contacts</h3>
       <p class="text-sm text-gray-500 mt-1">Upload a CSV file with your contacts</p>
@@ -260,14 +260,14 @@ function openImportModal() {
         </select>
       </div>
       <div class="flex items-center gap-2 bg-blue-50 rounded-lg p-3">
-        <input type="checkbox" id="import-verify" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+        <input type="checkbox" id="import-verify" checked class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
         <label for="import-verify" class="text-sm text-blue-800 font-medium">Verify emails before importing</label>
-        <span class="text-xs text-blue-600 ml-auto">(Checks MX, domain, free/business)</span>
+        <span class="text-xs text-blue-600 ml-auto">(MX, domain, free/business)</span>
       </div>
       <div id="import-verify-results" class="hidden"></div>
       <div class="flex gap-3 justify-end pt-2">
         <button type="button" onclick="this.closest('.fixed').remove()" class="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">Cancel</button>
-        <button type="submit" id="import-btn" class="px-4 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700">Import</button>
+        <button type="submit" id="import-btn" class="px-4 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700">Import & Verify</button>
       </div>
     </form>
   </div>`;
@@ -315,25 +315,19 @@ async function submitCsvImport(e) {
 
     let msg = `Imported ${data.imported} contacts (${data.skipped} skipped)`;
     if (data.verification) {
-      msg += ` | Verified: ${data.verification.valid} valid, ${data.verification.invalid} invalid`;
-      if (data.verification.skippedInvalid > 0) {
-        msg += ` (${data.verification.skippedInvalid} invalid emails excluded)`;
-      }
-      // Show verification details
+      msg += ` | ${data.verification.valid} valid, ${data.verification.invalid} invalid`;
+
+      // Expand modal for results
+      const modalInner = document.getElementById('import-modal-inner');
+      if (modalInner) modalInner.classList.remove('max-w-lg');
+      if (modalInner) modalInner.classList.add('max-w-4xl');
+
       const resultsDiv = document.getElementById('import-verify-results');
       resultsDiv.classList.remove('hidden');
-      resultsDiv.innerHTML = `
-        <div class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm space-y-1">
-          <p class="font-medium text-blue-900">Verification Results:</p>
-          <div class="flex gap-4 text-xs">
-            <span class="text-green-700">Valid: ${data.verification.valid}</span>
-            <span class="text-red-700">Invalid: ${data.verification.invalid}</span>
-            <span class="text-blue-700">Free: ${data.verification.free}</span>
-            <span class="text-purple-700">Business: ${data.verification.business}</span>
-          </div>
-          ${data.verification.skippedInvalid > 0 ? `<p class="text-xs text-orange-700">${data.verification.skippedInvalid} invalid emails were excluded from import</p>` : ''}
-        </div>`;
+      renderImportVerifySummary(resultsDiv, data);
+
       btn.textContent = 'Done!';
+      btn.classList.add('hidden');
       showToast(msg, 'success');
       loadContacts();
       return;
@@ -350,6 +344,23 @@ async function submitCsvImport(e) {
 }
 
 // ---- Upload to specific list ----
+function exportImportVerifyResults() {
+  const results = window._importVerifyResults;
+  if (!results || !results.length) return showToast('No results to export', 'warning');
+  const csv = 'email,valid,type,mx,domain,format,reason\n' +
+    results.map(r =>
+      `"${r.email}",${r.valid},${r.valid ? (r.details.disposable ? 'disposable' : (r.details.free ? 'free' : 'business')) : 'n/a'},${r.details.mx},${r.details.domain},${r.details.format},"${r.reason}"`
+    ).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'import_verification_results.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Verification results exported');
+}
+
 function openListImportModal(listId, listName) {
   const modal = document.createElement('div');
   modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
@@ -374,9 +385,14 @@ function openListImportModal(listId, listName) {
           <p class="mt-0.5">Download the <a href="#" onclick="event.preventDefault();downloadSampleCsv()" class="underline font-medium">sample CSV file</a> to see the correct format.</p>
         </div>
       </div>
+      <div class="flex items-center gap-2 bg-blue-50 rounded-lg p-3">
+        <input type="checkbox" id="list-import-verify" checked class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+        <label for="list-import-verify" class="text-sm text-blue-800 font-medium">Verify emails before importing</label>
+      </div>
+      <div id="list-import-verify-results" class="hidden"></div>
       <div class="flex gap-3 justify-end pt-2">
         <button type="button" onclick="this.closest('.fixed').remove()" class="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">Cancel</button>
-        <button type="submit" id="list-import-btn" class="px-4 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700">Import</button>
+        <button type="submit" id="list-import-btn" class="px-4 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700">Import & Verify</button>
       </div>
     </form>
   </div>`;
@@ -386,17 +402,19 @@ function openListImportModal(listId, listName) {
 async function submitListCsvImport(e, listId) {
   e.preventDefault();
   const fileInput = document.getElementById('list-csv-file');
+  const verify = document.getElementById('list-import-verify').checked;
   const btn = document.getElementById('list-import-btn');
 
   if (!fileInput.files[0]) return showToast('Select a CSV file', 'error');
 
   btn.disabled = true;
-  btn.textContent = 'Importing...';
+  btn.textContent = verify ? 'Verifying & Importing...' : 'Importing...';
 
   try {
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
     formData.append('listId', listId);
+    if (verify) formData.append('verify', 'true');
 
     const headers = {};
     const apiKey = getApiKey();
@@ -406,15 +424,120 @@ async function submitListCsvImport(e, listId) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Import failed');
 
-    showToast(`Imported ${data.imported} contacts (${data.skipped} skipped)`);
+    let msg = `Imported ${data.imported} contacts (${data.skipped} skipped)`;
+
+    if (data.verification) {
+      msg += ` | ${data.verification.valid} valid, ${data.verification.invalid} invalid`;
+      const resultsDiv = document.getElementById('list-import-verify-results');
+      resultsDiv.classList.remove('hidden');
+      renderImportVerifySummary(resultsDiv, data);
+      btn.classList.add('hidden');
+      showToast(msg, 'success');
+      loadContacts();
+      loadContactLists();
+      return;
+    }
+
+    showToast(msg, 'success');
     document.getElementById('list-import-modal').remove();
     loadContacts();
     loadContactLists();
   } catch (err) {
     showToast(err.message, 'error');
     btn.disabled = false;
-    btn.textContent = 'Import';
+    btn.textContent = 'Import & Verify';
   }
+}
+
+// Shared renderer for import verification results
+function renderImportVerifySummary(container, data) {
+  const v = data.verification;
+  const results = v.results || [];
+
+  const checkIcon = '<svg class="w-4 h-4 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+  const crossIcon = '<svg class="w-4 h-4 text-red-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+
+  const rows = results.map(r => {
+    const statusBadge = r.valid
+      ? '<span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Valid</span>'
+      : '<span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Invalid</span>';
+    const typeBadge = !r.valid ? '<span class="text-xs text-gray-400">-</span>'
+      : r.details.disposable ? '<span class="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">Disposable</span>'
+      : r.details.free ? '<span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Free</span>'
+      : '<span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">Business</span>';
+    const imported = r.valid
+      ? '<span class="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700">Imported</span>'
+      : '<span class="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-600">Skipped</span>';
+
+    return `<tr class="hover:bg-gray-50 border-b border-gray-50">
+      <td class="px-3 py-2 text-xs font-mono text-gray-900">${escapeHtml(r.email)}</td>
+      <td class="px-3 py-2 text-center">${statusBadge}</td>
+      <td class="px-3 py-2 text-center">${typeBadge}</td>
+      <td class="px-3 py-2 text-center">${r.details.mx ? checkIcon : crossIcon}</td>
+      <td class="px-3 py-2 text-center">${r.details.domain ? checkIcon : crossIcon}</td>
+      <td class="px-3 py-2 text-xs text-gray-500">${escapeHtml(r.reason)}</td>
+      <td class="px-3 py-2 text-center">${imported}</td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="space-y-3">
+      <div class="grid grid-cols-5 gap-2">
+        <div class="rounded-lg border border-gray-200 bg-gray-50 p-2 text-center">
+          <p class="text-[10px] font-medium text-gray-500 uppercase">Total</p>
+          <p class="text-lg font-bold text-gray-900">${v.total}</p>
+        </div>
+        <div class="rounded-lg border border-green-200 bg-green-50 p-2 text-center">
+          <p class="text-[10px] font-medium text-green-600 uppercase">Valid</p>
+          <p class="text-lg font-bold text-green-700">${v.valid}</p>
+        </div>
+        <div class="rounded-lg border border-red-200 bg-red-50 p-2 text-center">
+          <p class="text-[10px] font-medium text-red-600 uppercase">Invalid</p>
+          <p class="text-lg font-bold text-red-700">${v.invalid}</p>
+        </div>
+        <div class="rounded-lg border border-blue-200 bg-blue-50 p-2 text-center">
+          <p class="text-[10px] font-medium text-blue-600 uppercase">Free</p>
+          <p class="text-lg font-bold text-blue-700">${v.free}</p>
+        </div>
+        <div class="rounded-lg border border-purple-200 bg-purple-50 p-2 text-center">
+          <p class="text-[10px] font-medium text-purple-600 uppercase">Business</p>
+          <p class="text-lg font-bold text-purple-700">${v.business}</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-2">
+        <span class="text-sm font-medium text-gray-700">Summary:</span>
+        <span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">${data.imported} imported</span>
+        <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">${data.skipped} duplicates</span>
+        ${v.skippedInvalid > 0 ? `<span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">${v.skippedInvalid} invalid excluded</span>` : ''}
+      </div>
+      <div class="rounded-lg border border-gray-200 overflow-hidden">
+        <div class="max-h-52 overflow-y-auto">
+          <table class="w-full text-sm">
+            <thead class="sticky top-0 bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th class="text-left text-[10px] font-medium text-gray-500 uppercase px-3 py-2">Email</th>
+                <th class="text-center text-[10px] font-medium text-gray-500 uppercase px-3 py-2">Status</th>
+                <th class="text-center text-[10px] font-medium text-gray-500 uppercase px-3 py-2">Type</th>
+                <th class="text-center text-[10px] font-medium text-gray-500 uppercase px-3 py-2">MX</th>
+                <th class="text-center text-[10px] font-medium text-gray-500 uppercase px-3 py-2">Domain</th>
+                <th class="text-left text-[10px] font-medium text-gray-500 uppercase px-3 py-2">Reason</th>
+                <th class="text-center text-[10px] font-medium text-gray-500 uppercase px-3 py-2">Action</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>
+      <div class="flex justify-between items-center">
+        <button type="button" onclick="exportImportVerifyResults()" class="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Export CSV
+        </button>
+        <button type="button" onclick="this.closest('.fixed').remove()" class="text-xs px-4 py-1.5 rounded-lg bg-primary-600 text-white font-medium hover:bg-primary-700">Done</button>
+      </div>
+    </div>`;
+
+  window._importVerifyResults = results;
 }
 
 function downloadSampleCsv() {

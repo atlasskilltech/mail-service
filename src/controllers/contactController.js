@@ -160,7 +160,8 @@ exports.csvImport = async (req, res) => {
         invalid: verifyResults.invalid,
         free: verifyResults.free,
         business: verifyResults.business,
-        skippedInvalid: contacts.length - validContacts.length
+        skippedInvalid: contacts.length - validContacts.length,
+        results: verifyResults.results
       };
     }
     res.status(201).json(response);
