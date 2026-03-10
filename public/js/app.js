@@ -567,7 +567,7 @@ document.getElementById('send-email-form').addEventListener('submit', async (e) 
     if (Object.keys(data).length > 0) body.data = data;
   } else {
     body.subject = document.getElementById('email-subject').value;
-    body.html = document.getElementById('email-html').value;
+    body.html = getQuillHTML();
     body.text = document.getElementById('email-text').value;
   }
 
@@ -576,6 +576,7 @@ document.getElementById('send-email-form').addEventListener('submit', async (e) 
     if (result.success) {
       showToast(`Email queued successfully (ID: ${result.logId})`, 'success');
       e.target.reset();
+      clearQuillEditor();
     } else {
       showToast(result.error || 'Failed to send email', 'error');
     }
@@ -1691,7 +1692,41 @@ document.getElementById('webhook-form').addEventListener('submit', async (e) => 
   }
 });
 
+// Quill Rich Text Editor
+let quillEditor = null;
+
+function initQuillEditor() {
+  if (quillEditor) return;
+  quillEditor = new Quill('#email-html-editor', {
+    theme: 'snow',
+    placeholder: 'Compose your email...',
+    modules: {
+      toolbar: [
+        [{ 'header': [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ 'color': [] }, { 'background': [] }],
+        [{ 'align': [] }],
+        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+        ['blockquote'],
+        ['link', 'image'],
+        ['clean']
+      ]
+    }
+  });
+}
+
+function getQuillHTML() {
+  if (!quillEditor) return '';
+  const html = quillEditor.root.innerHTML;
+  return html === '<p><br></p>' ? '' : html;
+}
+
+function clearQuillEditor() {
+  if (quillEditor) quillEditor.setContents([]);
+}
+
 // Initialize
 window.addEventListener('DOMContentLoaded', () => {
   loadDashboard();
+  initQuillEditor();
 });

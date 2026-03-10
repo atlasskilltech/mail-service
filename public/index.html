@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mail Service Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -25,6 +27,11 @@
     .toast { animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s; }
     @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
     @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+    /* Quill Editor */
+    #email-html-editor .ql-editor { font-size: 14px; min-height: 200px; }
+    .ql-toolbar.ql-snow { border-radius: 8px 8px 0 0; border-color: #d1d5db; background: #f9fafb; }
+    .ql-container.ql-snow { border-radius: 0 0 8px 8px; border-color: #d1d5db; }
 
     /* Drag & Drop Editor */
     .dnd-editor-wrap { display:flex; height:calc(100vh - 130px); margin:-32px; border-radius:0; overflow:hidden; }
@@ -417,7 +424,7 @@
                   </div>
                   <div class="mt-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">HTML Body</label>
-                    <textarea id="email-html" rows="6" placeholder="<h1>Hello</h1><p>Your email content...</p>" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none font-mono"></textarea>
+                    <div id="email-html-editor" style="height: 250px;"></div>
                   </div>
                   <div class="mt-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Plain Text (optional)</label>
