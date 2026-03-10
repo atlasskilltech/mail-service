@@ -52,6 +52,13 @@ class ApiKey {
     return result.affectedRows > 0;
   }
 
+  static async findFirstActive() {
+    const [rows] = await db.execute(
+      'SELECT id, key_name, api_key FROM api_keys WHERE is_active = 1 AND (expires_at IS NULL OR expires_at > NOW()) ORDER BY created_at ASC LIMIT 1'
+    );
+    return rows.length > 0 ? rows[0] : null;
+  }
+
   static async revoke(id) {
     const [result] = await db.execute('UPDATE api_keys SET is_active = 0 WHERE id = ?', [id]);
     return result.affectedRows > 0;

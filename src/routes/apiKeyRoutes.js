@@ -3,6 +3,7 @@ const router = express.Router();
 const apiKeyController = require('../controllers/apiKeyController');
 const { authenticate } = require('../middleware/auth');
 
+router.get('/active', authenticate, (req, res) => apiKeyController.getActiveKey(req, res));
 router.get('/', authenticate, (req, res) => apiKeyController.listKeys(req, res));
 router.get('/:id', authenticate, (req, res) => apiKeyController.getKey(req, res));
 router.post('/', authenticate, (req, res) => apiKeyController.createKey(req, res));
