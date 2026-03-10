@@ -2,6 +2,19 @@ const ApiKey = require('../models/apiKey');
 const logger = require('../utils/logger');
 
 class ApiKeyController {
+  async getActiveKey(req, res) {
+    try {
+      const key = await ApiKey.findFirstActive();
+      if (!key) {
+        return res.status(404).json({ error: 'No active API key found' });
+      }
+      res.json({ apiKey: key.api_key, keyName: key.key_name, id: key.id });
+    } catch (error) {
+      logger.error('Get active API key error:', error);
+      res.status(500).json({ error: 'Failed to get active API key' });
+    }
+  }
+
   async listKeys(req, res) {
     try {
       const keys = await ApiKey.findAll();

@@ -15,6 +15,28 @@ function setAuth(token, email) {
 function clearAuth() {
   localStorage.removeItem('jwt_token');
   localStorage.removeItem('user_email');
+  localStorage.removeItem('mail-service-api-key');
+}
+
+function getApiKey() {
+  return localStorage.getItem('mail-service-api-key');
+}
+
+async function autoSetApiKey() {
+  try {
+    const token = getToken();
+    if (!token) return;
+    const res = await fetch('/api-keys/active', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.apiKey) {
+      localStorage.setItem('mail-service-api-key', data.apiKey);
+    }
+  } catch (err) {
+    console.warn('Auto-set API key failed:', err.message);
+  }
 }
 
 function isLoggedIn() {
@@ -41,6 +63,7 @@ async function handleLogin(e) {
     if (!res.ok) throw new Error(data.error || 'Login failed');
 
     setAuth(data.token, data.email);
+    await autoSetApiKey();
     showApp();
   } catch (err) {
     errorEl.textContent = err.message;
@@ -70,8 +93,11 @@ function showLogin() {
 }
 
 // Check auth on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
   if (isLoggedIn()) {
+    if (!getApiKey()) {
+      await autoSetApiKey();
+    }
     showApp();
   } else {
     showLogin();
@@ -1182,7 +1208,6 @@ function copyApiKey() {
 
 document.getElementById('apikey-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  if (!getApiKey()) return showToast('Please enter your API key', 'error');
 
   const body = {
     keyName: document.getElementById('ak-name').value,
@@ -1198,6 +1223,10 @@ document.getElementById('apikey-form').addEventListener('submit', async (e) => {
     // Show the generated key
     document.getElementById('ak-result-key').value = result.apiKey;
     document.getElementById('apikey-result-modal').classList.remove('hidden');
+    // Auto-set the API key if none is currently active
+    if (!getApiKey() && result.apiKey) {
+      localStorage.setItem('mail-service-api-key', result.apiKey);
+    }
     loadApiKeys();
   } catch (err) {
     showToast(err.message, 'error');
@@ -1355,14 +1384,7 @@ document.getElementById('webhook-form').addEventListener('submit', async (e) => 
   }
 });
 
-// API key persistence
-document.getElementById('api-key-input').addEventListener('change', function() {
-  localStorage.setItem('mail-service-api-key', this.value);
-});
-
 // Initialize
 window.addEventListener('DOMContentLoaded', () => {
-  const savedKey = localStorage.getItem('mail-service-api-key');
-  if (savedKey) document.getElementById('api-key-input').value = savedKey;
   loadDashboard();
 });
