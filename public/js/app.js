@@ -321,6 +321,53 @@ function formatUptime(seconds) {
   return `${s}s`;
 }
 
+// Email Verification
+async function verifyEmails() {
+  const toVal = document.getElementById('email-to').value.trim();
+  if (!toVal) return showToast('Enter email address(es) to verify', 'warning');
+  if (!getApiKey()) return showToast('Please enter your API key', 'error');
+
+  const resultsDiv = document.getElementById('verify-results');
+  resultsDiv.classList.remove('hidden');
+  resultsDiv.innerHTML = '<p class="text-xs text-gray-500">Verifying...</p>';
+
+  const emails = toVal.includes(',') ? toVal.split(',').map(e => e.trim()).filter(Boolean) : [toVal.trim()];
+
+  try {
+    let results;
+    if (emails.length > 1) {
+      const data = await api('POST', '/email/verify', { emails });
+      results = data.results;
+    } else {
+      const data = await api('POST', '/email/verify', { email: emails[0] });
+      results = [data];
+    }
+
+    resultsDiv.innerHTML = results.map(r => {
+      const icon = r.valid
+        ? '<svg class="w-4 h-4 text-green-500 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'
+        : '<svg class="w-4 h-4 text-red-500 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+      const bg = r.valid ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
+      const textColor = r.valid ? 'text-green-700' : 'text-red-700';
+      const details = [];
+      if (r.details) {
+        if (r.details.format) details.push('Format OK');
+        if (r.details.mx) details.push('MX OK');
+        if (r.details.domain) details.push('Domain OK');
+        if (r.details.disposable) details.push('Disposable');
+      }
+      return `<div class="flex items-center gap-2 px-3 py-2 rounded-lg border ${bg}">
+        ${icon}
+        <span class="text-sm font-medium ${textColor}">${escapeHtml(r.email)}</span>
+        <span class="text-xs ${textColor}">${escapeHtml(r.reason)}</span>
+        ${details.length ? `<span class="text-xs text-gray-500 ml-auto">${details.join(' | ')}</span>` : ''}
+      </div>`;
+    }).join('');
+  } catch (err) {
+    resultsDiv.innerHTML = `<p class="text-xs text-red-600">${escapeHtml(err.message)}</p>`;
+  }
+}
+
 // Send Email
 document.getElementById('send-email-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -1050,6 +1097,40 @@ function copyCodeBlock(btn) {
 }
 
 // Bounces
+let _allBounces = [];
+
+function renderBounces(bounces) {
+  const tbody = document.getElementById('bounces-table-body');
+
+  if (!bounces.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-12 text-center text-sm text-gray-500">No bounces found</td></tr>';
+    document.getElementById('bounce-stats-bar').classList.add('hidden');
+    return;
+  }
+
+  // Show stats
+  const hard = bounces.filter(b => b.bounce_type === 'hard').length;
+  const soft = bounces.filter(b => b.bounce_type === 'soft').length;
+  const complaint = bounces.filter(b => b.bounce_type === 'complaint').length;
+
+  document.getElementById('bounce-stats-bar').classList.remove('hidden');
+  document.getElementById('bounce-stat-hard').textContent = `Hard: ${hard}`;
+  document.getElementById('bounce-stat-soft').textContent = `Soft: ${soft}`;
+  document.getElementById('bounce-stat-complaint').textContent = `Complaint: ${complaint}`;
+  document.getElementById('bounce-stat-total').textContent = `Total: ${bounces.length}`;
+
+  tbody.innerHTML = bounces.map(b => `
+    <tr class="hover:bg-gray-50 transition-colors">
+      <td class="px-6 py-3 text-sm text-gray-900">${escapeHtml(b.email)}</td>
+      <td class="px-6 py-3">${bounceTypeBadge(b.bounce_type)}</td>
+      <td class="px-6 py-3 text-sm text-gray-600">${escapeHtml(b.bounce_subtype) || '-'}</td>
+      <td class="px-6 py-3 text-sm text-gray-500 text-xs max-w-xs truncate" title="${escapeHtml(b.diagnostic_code) || ''}">${escapeHtml(b.diagnostic_code) || '-'}</td>
+      <td class="px-6 py-3 text-sm text-gray-500 font-mono text-xs max-w-xs truncate">${escapeHtml(b.original_message_id) || '-'}</td>
+      <td class="px-6 py-3 text-sm text-gray-500">${formatDate(b.created_at)}</td>
+    </tr>
+  `).join('');
+}
+
 async function loadBounces() {
   if (!getApiKey()) return showToast('Please enter your API key', 'error');
 
@@ -1058,29 +1139,78 @@ async function loadBounces() {
 
   try {
     const data = await api('GET', `/bounces/email/${encodeURIComponent(email)}`);
-    const bounces = data.bounces || data;
-    const tbody = document.getElementById('bounces-table-body');
+    _allBounces = data.bounces || data;
 
-    if (!bounces.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500">No bounces found for this email</td></tr>';
-      return;
+    // Apply type filter
+    const typeFilter = document.getElementById('bounce-type-filter').value;
+    let filtered = _allBounces;
+    if (typeFilter) {
+      filtered = filtered.filter(b => b.bounce_type === typeFilter);
     }
 
-    tbody.innerHTML = bounces.map(b => `
-      <tr class="hover:bg-gray-50 transition-colors">
-        <td class="px-6 py-3 text-sm text-gray-900">${escapeHtml(b.email)}</td>
-        <td class="px-6 py-3">${bounceTypeBadge(b.bounce_type)}</td>
-        <td class="px-6 py-3 text-sm text-gray-600">${escapeHtml(b.bounce_subtype) || '-'}</td>
-        <td class="px-6 py-3 text-sm text-gray-500 font-mono text-xs max-w-xs truncate">${escapeHtml(b.original_message_id) || '-'}</td>
-        <td class="px-6 py-3 text-sm text-gray-500">${formatDate(b.created_at)}</td>
-      </tr>
-    `).join('');
+    // Apply sort
+    const sortVal = document.getElementById('bounce-sort').value;
+    if (sortVal === 'oldest') {
+      filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    } else {
+      filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+
+    renderBounces(filtered);
   } catch (err) {
     showToast(err.message, 'error');
   }
 }
 
+async function loadAllBounces() {
+  if (!getApiKey()) return showToast('Please enter your API key', 'error');
+
+  const typeFilter = document.getElementById('bounce-type-filter').value;
+  const sortVal = document.getElementById('bounce-sort').value;
+
+  let url = `/bounces/all?limit=100&sort=${sortVal}`;
+  if (typeFilter) url += `&type=${encodeURIComponent(typeFilter)}`;
+
+  try {
+    const data = await api('GET', url);
+    _allBounces = data.items || data;
+    renderBounces(_allBounces);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function sortBounces(field) {
+  if (!_allBounces.length) return;
+  const tbody = document.getElementById('bounces-table-body');
+  const currentFirst = _allBounces[0];
+  const currentLast = _allBounces[_allBounces.length - 1];
+
+  if (field === 'created_at') {
+    const isAsc = new Date(currentFirst.created_at) <= new Date(currentLast.created_at);
+    _allBounces.sort((a, b) => isAsc
+      ? new Date(b.created_at) - new Date(a.created_at)
+      : new Date(a.created_at) - new Date(b.created_at)
+    );
+  } else if (field === 'bounce_type') {
+    const order = { hard: 1, soft: 2, complaint: 3 };
+    const isAsc = order[currentFirst.bounce_type] <= (order[currentLast.bounce_type] || 99);
+    _allBounces.sort((a, b) => isAsc
+      ? (order[b.bounce_type] || 99) - (order[a.bounce_type] || 99)
+      : (order[a.bounce_type] || 99) - (order[b.bounce_type] || 99)
+    );
+  }
+  renderBounces(_allBounces);
+}
+
 document.getElementById('bounce-search').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadBounces(); });
+document.getElementById('bounce-type-filter').addEventListener('change', () => {
+  if (_allBounces.length) {
+    const typeFilter = document.getElementById('bounce-type-filter').value;
+    const filtered = typeFilter ? _allBounces.filter(b => b.bounce_type === typeFilter) : _allBounces;
+    renderBounces(filtered);
+  }
+});
 
 // Suppression List
 async function loadSuppressionList() {

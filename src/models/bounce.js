@@ -18,6 +18,32 @@ class Bounce {
     return rows;
   }
 
+  static async findAll({ limit = 50, offset = 0, bounceType = null, sort = 'DESC' } = {}) {
+    const order = sort === 'ASC' ? 'ASC' : 'DESC';
+    let query = 'SELECT * FROM bounces';
+    const params = [];
+
+    if (bounceType) {
+      query += ' WHERE bounce_type = ?';
+      params.push(bounceType);
+    }
+
+    query += ` ORDER BY created_at ${order} LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
+
+    const [rows] = await db.execute(query, params);
+
+    let countQuery = 'SELECT COUNT(*) as total FROM bounces';
+    const countParams = [];
+    if (bounceType) {
+      countQuery += ' WHERE bounce_type = ?';
+      countParams.push(bounceType);
+    }
+    const [countRow] = await db.execute(countQuery, countParams);
+
+    return { items: rows, total: countRow[0].total };
+  }
+
   static async getStats(startDate, endDate) {
     const [rows] = await db.execute(
       `SELECT bounce_type, COUNT(*) as count

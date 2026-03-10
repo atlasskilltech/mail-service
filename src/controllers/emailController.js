@@ -1,4 +1,5 @@
 const emailService = require('../services/emailService');
+const emailVerifyService = require('../services/emailVerifyService');
 const EmailLog = require('../models/emailLog');
 const logger = require('../utils/logger');
 
@@ -82,6 +83,29 @@ class EmailController {
     } catch (error) {
       logger.error('Get stats error:', error);
       res.status(500).json({ error: 'Failed to get email stats' });
+    }
+  }
+  async verifyEmail(req, res) {
+    try {
+      const { email, emails } = req.body;
+
+      if (emails && Array.isArray(emails)) {
+        if (emails.length > 50) {
+          return res.status(400).json({ error: 'Maximum 50 emails per verification request' });
+        }
+        const result = await emailVerifyService.verifyEmails(emails);
+        return res.json(result);
+      }
+
+      if (!email) {
+        return res.status(400).json({ error: 'Email address is required' });
+      }
+
+      const result = await emailVerifyService.verifyEmail(email);
+      res.json(result);
+    } catch (error) {
+      logger.error('Email verify error:', error);
+      res.status(500).json({ error: 'Failed to verify email', details: error.message });
     }
   }
 }
