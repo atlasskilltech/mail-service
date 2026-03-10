@@ -386,6 +386,7 @@ function renderCanvas() {
     });
     // Drag reorder
     el.addEventListener('dragstart', (e) => {
+      if (activeEditableEl && el.contains(activeEditableEl)) { e.preventDefault(); return; }
       e.stopPropagation();
       dragSrcId = block.id;
       e.dataTransfer.effectAllowed = 'move';
@@ -1425,8 +1426,12 @@ async function submitSaveTemplate(e) {
 
 // ---- Inline Rich Text Editing ----
 let activeEditableEl = null;
+let activeEditableBlockEl = null;
 
 function enableInlineEditing(blockEl, block) {
+  // Skip if already editing this same block
+  if (activeEditableEl && activeEditableBlockEl === blockEl) return;
+
   // Disable previous inline editing
   disableAllInlineEditing();
 
@@ -1438,10 +1443,14 @@ function enableInlineEditing(blockEl, block) {
     return;
   }
 
+  // Disable draggable on this block so contenteditable works
+  blockEl.draggable = false;
+
   // Enable contenteditable
   editable.contentEditable = 'true';
   editable.classList.add('inline-editable-active');
   activeEditableEl = editable;
+  activeEditableBlockEl = blockEl;
 
   // Show toolbar
   toolbar.style.display = 'flex';
@@ -1449,6 +1458,18 @@ function enableInlineEditing(blockEl, block) {
   // Set font size display
   const fontSize = block.props?.fontSize || (block.type === 'header' ? 24 : block.type === 'footer' ? 12 : 16);
   document.getElementById('itb-font-size').textContent = fontSize;
+
+  // Focus the editable and place cursor
+  setTimeout(() => {
+    editable.focus();
+    // Place cursor at end
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editable);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }, 0);
 
   // Listen for content changes
   editable.addEventListener('input', onInlineContentChange);
@@ -1466,6 +1487,11 @@ function disableAllInlineEditing() {
     activeEditableEl.removeEventListener('keyup', updateToolbarState);
     activeEditableEl.removeEventListener('mouseup', updateToolbarState);
     activeEditableEl = null;
+  }
+  // Re-enable draggable on the block element
+  if (activeEditableBlockEl) {
+    activeEditableBlockEl.draggable = true;
+    activeEditableBlockEl = null;
   }
 }
 
